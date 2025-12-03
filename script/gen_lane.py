@@ -6,21 +6,19 @@
 import sys
 sys.path.append("/home/user/workspace/open-graphs")
 
-import numpy as np
-import matplotlib.pyplot as plt
-import json
-from pathlib import Path
-from omegaconf import DictConfig
-from some_class.datasets_class import SemanticKittiDataset
-import hydra
-from sklearn.neighbors import KDTree
-from sklearn.cluster import DBSCAN
-import itertools
-from scipy.spatial import distance
-from collections import defaultdict
 import math
 import json
+import hydra
+import numpy as np
+import matplotlib.pyplot as plt
 
+from pathlib import Path
+from omegaconf import DictConfig
+from scipy.spatial import distance
+from sklearn.cluster import DBSCAN
+from sklearn.neighbors import KDTree
+from collections import defaultdict
+from some_class.datasets_class import SemanticKittiDataset
 
 
 def process_cfg(cfg: DictConfig):

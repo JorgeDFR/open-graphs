@@ -6,25 +6,26 @@
 import sys
 sys.path.append("/home/user/workspace/open-graphs")
 
-import numpy as np
-import cv2
-import torch
-from pathlib import Path
 import os
+import cv2
 import gzip
-import pickle
-from sentence_transformers import SentenceTransformer
-from datetime import datetime
-from utils.utils import project, gobs_to_detection_list, denoise_objects, filter_objects, merge_objects, accumulate_pc, distance_filter, show_captions, class_objects
-from tqdm import trange
-from some_class.datasets_class import SemanticKittiDataset
-from some_class.map_calss import MapObjectList
-from utils.merge import compute_spatial_similarities, compute_caption_similarities, compute_ft_similarities, aggregate_similarities, merge_detections_to_objects, caption_merge, captions_ft
-import open3d as o3d
 import hydra
-from omegaconf import DictConfig
-from utils.merge import merge_obj2_into_obj1
+import torch
+import pickle
+import numpy as np
+import open3d as o3d
 import mos4d.models.models_test as models
+
+from utils.utils import *
+from utils.merge import *
+from tqdm import trange
+from pathlib import Path
+from datetime import datetime
+from omegaconf import DictConfig
+from some_class.map_calss import MapObjectList
+from some_class.datasets_class import SemanticKittiDataset
+from sentence_transformers import SentenceTransformer
+
 
 # 一些背景常见的caption：道路，人行道
 # 背景可能产生的标签

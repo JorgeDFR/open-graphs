@@ -1,21 +1,16 @@
 """
-2024.01.18 
+2024.01.18
 加载semantic数据格式的一个类
 """
 
-import abc
-import glob
-import json
 import os
-from pathlib import Path
-from typing import Dict, List, Optional, Union
-
 import cv2
-import imageio
-import numpy as np
+import glob
 import torch
-import torch.nn.functional as F
-import yaml
+import numpy as np
+
+from pathlib import Path
+from typing import Optional, Union
 from natsort import natsorted
 
 
@@ -84,7 +79,7 @@ class SemanticKittiDataset(torch.utils.data.Dataset):
             # 变换到雷达坐标系
             poses = poses @ self.calib['T_cam2_velo']
         return poses
-    
+
     def load_calib(self):
         '''
         加载标定文件
@@ -102,7 +97,7 @@ class SemanticKittiDataset(torch.utils.data.Dataset):
             Tr = np.vstack([Tr, [0, 0, 0, 1]])
             calib['T_cam2_velo'] = Tr
         return calib
-    
+
     def load_velo_scan(self, velo_filename):
         '''
         加载雷达数据
@@ -110,13 +105,13 @@ class SemanticKittiDataset(torch.utils.data.Dataset):
         scan = np.fromfile(velo_filename, dtype=np.float32)
         scan = scan.reshape((-1, 4))
         return scan
-    
+
     def __len__(self):
         '''
         得到数据集中数据的数量
         '''
         return self.num_imgs
-    
+
     def __getitem__(self, index):
         '''
         索引，按照索引值数据类的一个数据，包括图像、点云、位姿

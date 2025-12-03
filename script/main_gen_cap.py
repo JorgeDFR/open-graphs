@@ -6,22 +6,17 @@
 import sys
 sys.path.append("/home/user/workspace/open-graphs")
 
-import numpy as np
-import cv2
-import matplotlib.pyplot as plt
-import torch
-from pathlib import Path
-from typing import List, Dict, Optional, Any
-import glob
 import os
 import gzip
-import pickle
-from utils.utils import  load_models, project
-from tqdm import trange
-from some_class.datasets_class import SemanticKittiDataset
-import open3d as o3d
 import hydra
+import pickle
+
+from tqdm import trange
+from typing import Dict
+from pathlib import Path
 from omegaconf import DictConfig
+from utils.utils import load_models
+from some_class.datasets_class import SemanticKittiDataset
 
 
 def process_cfg(cfg: DictConfig):

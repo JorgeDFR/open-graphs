@@ -1,15 +1,17 @@
 
 '''
-2024.01.18 
+2024.01.18
 点云地图的类，支持各种操作
 '''
-from collections.abc import Iterable
+
 import copy
-import matplotlib
 import torch
-import torch.nn.functional as F
+import matplotlib
 import numpy as np
 import open3d as o3d
+import torch.nn.functional as F
+
+from collections.abc import Iterable
 
 
 class DetectionList(list):
@@ -24,7 +26,7 @@ class DetectionList(list):
             return [detection[key] for detection in self]
         else:
             return [detection[key][idx] for detection in self]
-    
+
     def get_stacked_values_torch(self, key, idx:int=None):
         '''
         得到堆叠起来的值torch类型
@@ -43,7 +45,7 @@ class DetectionList(list):
                 v = torch.from_numpy(v)
             values.append(v)
         return torch.stack(values, dim=0)
-    
+
     def get_stacked_values_numpy(self, key, idx:int=None):
         '''
         得到堆叠起来的值numpy类型
@@ -51,7 +53,7 @@ class DetectionList(list):
         values = self.get_stacked_values_torch(key, idx)
         from utils.utils import to_numpy
         return to_numpy(values)
-    
+
     def get_stacked_str_torch(self, key, idx:int=None):
         '''
         得到堆叠起来的caption类型
@@ -63,7 +65,7 @@ class DetectionList(list):
                 v = v[idx]
             values.append(v)
         return values
-    
+
     def __add__(self, other):
         '''
         复制一个新的列表，再加入其他值
@@ -71,14 +73,14 @@ class DetectionList(list):
         new_list = copy.deepcopy(self)
         new_list.extend(other)
         return new_list
-    
+
     def __iadd__(self, other):
         '''
         不复制，只增加
         '''
         self.extend(other)
         return self
-    
+
     def slice_by_indices(self, index: Iterable[int]):
         '''
         通过索引返回当前列表的子列表
@@ -87,7 +89,7 @@ class DetectionList(list):
         for i in index:
             new_self.append(self[i])
         return new_self
-    
+
     def slice_by_mask(self, mask: Iterable[bool]):
         '''
         通过mask返回当前列表的子列表
@@ -97,8 +99,8 @@ class DetectionList(list):
             if m:
                 new_self.append(self[i])
         return new_self
-    
-                
+
+
     def color_by_instance(self):
         '''
         按照instance确定颜色
@@ -118,8 +120,8 @@ class DetectionList(list):
             for i in range(len(self)):
                 self[i]['pcd'].paint_uniform_color(instance_colors[i])
                 self[i]['bbox'].color = instance_colors[i]
-            
-    
+
+
 class MapObjectList(DetectionList):
     '''
     用于存储整个点云列表
@@ -137,7 +139,7 @@ class MapObjectList(DetectionList):
         similarities = F.cosine_similarity(new_ft.unsqueeze(0), clip_fts)
         # 返回一个相似性数值
         return similarities
-    
+
     def to_serializable(self):
         '''
         序列，得到最简单形式的numpy，方便存储
@@ -155,7 +157,7 @@ class MapObjectList(DetectionList):
             del s_obj_dict['bbox']
             s_obj_list.append(s_obj_dict)
         return s_obj_list
-    
+
     def load_serializable(self, s_obj_list):
         '''
         加载序列

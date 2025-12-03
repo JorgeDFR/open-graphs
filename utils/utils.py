@@ -6,36 +6,24 @@
 import sys
 sys.path.append("/home/user/workspace/open-graphs")
 
-import numpy as np
-import cv2
-import matplotlib.pyplot as plt
-import torch
-from pathlib import Path
-from typing import List, Dict, Optional, Any
-from tokenize_anything import model_registry
-sys.path.append("/home/dyn/multimodal/Grounded-Segment-Anything")
-sys.path.append("/home/dyn/multimodal/Grounded-Segment-Anything/Tag2Text")
-from some_class.amg_class import MyAutomaticMaskGenerator
-from some_class.map_calss import DetectionList
-import open3d as o3d
-from collections import Counter
-from sentence_transformers import SentenceTransformer, util
-import spacy
-from some_class.map_calss import MapObjectList
-import torch.nn.functional as F
-import json
-from llama import Llama, Dialog
-import faiss
 import re
+import json
+import faiss
+import torch
+import spacy
 import openai
-from tqdm import trange
+import numpy as np
+import open3d as o3d
+import torch.nn.functional as F
 
-try:
-    from Tag2Text.models import tag2text
-    import torchvision.transforms as TS
-except ImportError as e:
-    print("Tag2text sub-package not found. Please check your PATH. ")
-    raise e
+from typing import List
+from tqdm import trange
+from llama import Dialog
+from ram.models import tag2text
+from collections import Counter
+from tokenize_anything import model_registry
+from sentence_transformers import SentenceTransformer
+from some_class.map_calss import DetectionList, MapObjectList, MyAutomaticMaskGenerator
 
 try:
     from groundingdino.util.inference import Model
@@ -60,10 +48,10 @@ def load_models(cfg):
     for i in range(3012, 3429):
         delete_tag_index.append(i)
     # load model
-    tagging_model = tag2text.tag2text_caption(pretrained=TAG2TEXT_CHECKPOINT_PATH,
-                                            image_size=384,
-                                            vit='swin_b',
-                                            delete_tag_index=delete_tag_index)
+    tagging_model = tag2text(pretrained=TAG2TEXT_CHECKPOINT_PATH,
+                             image_size=384,
+                             vit='swin_b',
+                             delete_tag_index=delete_tag_index)
     tagging_model = tagging_model.eval().to("cuda")
     # dino模型分割
     grounding_dino_model = Model(

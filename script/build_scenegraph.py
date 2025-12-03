@@ -3,13 +3,15 @@ sys.path.append("/home/user/workspace/open-graphs")
 
 import pickle
 import gzip
-from pathlib import Path
-from omegaconf import DictConfig
-from some_class.map_calss import MapObjectList
 import distinctipy
 import hydra
 import json
 import numpy as np
+
+from pathlib import Path
+from omegaconf import DictConfig
+from some_class.map_calss import MapObjectList
+
 from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import connected_components, minimum_spanning_tree
 

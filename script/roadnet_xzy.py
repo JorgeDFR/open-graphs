@@ -6,18 +6,12 @@
 import sys
 sys.path.append("/home/user/workspace/open-graphs")
 
-import os
+import json
+import hydra
 import numpy as np
 import open3d as o3d
-import hydra
 from omegaconf import DictConfig
-# from some_class.dividing_roadnet import roadnet
-from scipy.spatial.transform import Rotation as R
-# from visualize import lines_from_ordered_points, create_edge_mesh
 from collections import defaultdict
-import json
-
-
 
 
 def init_graph(graph_file,height):

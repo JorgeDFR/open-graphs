@@ -6,18 +6,18 @@
 import sys
 sys.path.append("/home/user/workspace/open-graphs")
 
+import re
 import torch
 import torch.nn.functional as F
-from some_class.map_calss import DetectionList, MapObjectList
-from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
-import re
+
 from tqdm import trange
-# import for caption merging
-from typing import List, Optional
+from typing import List
 from llama import Llama, Dialog
-import time
 from utils.utils import get_bounding_box, process_pcd
+from some_class.map_calss import DetectionList, MapObjectList
+from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
+
 
 def compute_spatial_similarities(detection_list: DetectionList, objects: MapObjectList) -> torch.Tensor:
     '''

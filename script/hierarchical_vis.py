@@ -1,18 +1,17 @@
 import sys
 sys.path.append("/home/user/workspace/open-graphs")
 
-import open3d as o3d
-import hydra
-from omegaconf import DictConfig
-import numpy as np
-import json
-import pickle
-import gzip
-import distinctipy
-from some_class.map_calss import MapObjectList
-from tqdm import trange
 import copy
+import json
+import gzip
+import hydra
+import pickle
 import random  # 导入随机模块
+import numpy as np
+import open3d as o3d
+
+from omegaconf import DictConfig
+from some_class.map_calss import MapObjectList
 from script.roadnet_xzy import color_by_road_net
 
 def lines_from_ordered_points(points):

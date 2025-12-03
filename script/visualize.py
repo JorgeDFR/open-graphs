@@ -6,41 +6,34 @@
 import sys
 sys.path.append("/home/user/workspace/open-graphs")
 
-import copy
-import networkx as nx
-from scipy.spatial import KDTree
-import json
 import os
-import pickle
+import re
+import cv2
+import copy
+import json
 import gzip
-import argparse
+import hydra
+import openai
 import random
+import pickle
 import matplotlib
+import distinctipy
 import numpy as np
-import pandas as pd
 import open3d as o3d
 import torch
 import torch.nn.functional as F
-import open_clip
-import hydra
-import cv2
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-from omegaconf import DictConfig
-from sentence_transformers import SentenceTransformer
-import distinctipy
-from some_class.map_calss import MapObjectList
-from utils.utils import  load_models
-import json
+
 from PIL import Image
 from pathlib import Path
-from tqdm import trange
+from omegaconf import DictConfig
+from utils.utils import load_models
+from some_class.map_calss import MapObjectList
+from sentence_transformers import SentenceTransformer
 from tokenize_anything import model_registry
-from tokenize_anything.utils.image import im_rescale
-from tokenize_anything.utils.image import im_vstack
-from some_class.datasets_class import SemanticKittiDataset
-import re
-import openai
+from tokenize_anything.utils.image import im_rescale, im_vstack
+
 
 saved_viewpoint = None
 

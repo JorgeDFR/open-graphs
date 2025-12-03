@@ -1,17 +1,15 @@
-#!/usr/bin/env python3
-import matplotlib.pyplot as plt
-import numpy as np
-import threading
 import os
-import time
-from collections import defaultdict
 import math
+import matplotlib.pyplot as plt
+
+from collections import defaultdict
 from matplotlib.lines import Line2D
+
 
 class roadnet:
     def __init__(self):
         # 用于不重复接受
-        self.net_version = 0 
+        self.net_version = 0
         # 用于可视化路网
         self.nodes = None
         self.edges = None
@@ -105,7 +103,7 @@ class roadnet:
             elif connections_max == 3:
                 self.edges[i] = (u, v, 3)
             elif connections_max == 4:
-                self.edges[i] = (u, v, 4)               
+                self.edges[i] = (u, v, 4)
             else:
                 self.edges[i] = (u, v, 1)
             # print(self.edges[i])
@@ -141,12 +139,12 @@ class roadnet:
                 x = [self.nodes[u][0], self.nodes[v][0]]
                 y = [self.nodes[u][1], self.nodes[v][1]]
                 #L交叉路口
-                if w == 2:     
+                if w == 2:
                     plt.plot(x, y, linewidth=10, color='darkblue')
-                #T交叉路口   
+                #T交叉路口
                 elif w == 3:
                     plt.plot(x, y, linewidth=10, color='darkred')
-                 #十字交叉路口   
+                 #十字交叉路口
                 elif w == 4:
                     plt.plot(x, y, linewidth=10, color='darkorange')
                 #正常直路
@@ -160,7 +158,7 @@ class roadnet:
             plt.axis('equal')
             # 添加图例
             # legend_elements = [
-            #     Line2D([0], [0], color='darkblue', lw=5, label='L-intersection'), 
+            #     Line2D([0], [0], color='darkblue', lw=5, label='L-intersection'),
             #     Line2D([0], [0], color='darkred', lw=5, label='T-intersection'),
             #     Line2D([0], [0], color='darkorange', lw=5, label='Crossroad'),
             #     Line2D([0], [0], color='darkgreen', lw=5, label='Straight road')
@@ -179,15 +177,12 @@ if __name__ == '__main__':
     okk=roadnet()
     #读取路网数据文件
     current_dir = os.path.dirname(__file__)
-    graph_file = os.path.join(current_dir,  '05.graph') 
+    graph_file = os.path.join(current_dir,  '05.graph')
     okk.init_graph(graph_file)
     #分割路网
     okk.dividing()
     #保存路网文件用来3D可视化
-    graph_file_3D = "test/05_3D.graph" 
+    graph_file_3D = "test/05_3D.graph"
     okk.save3D(graph_file_3D)
     #2D可视化
     okk.drawing()
-    
-    
-    

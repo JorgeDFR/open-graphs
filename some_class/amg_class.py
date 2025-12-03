@@ -1,39 +1,29 @@
 """
-2024.01.16 
+2024.01.16
 得到图像mask和caption的一个类MyAutomaticMaskGenerator
 """
-import numpy as np
+
 import cv2
-import matplotlib.pyplot as plt
 import torch
-from typing import List, Dict, Optional, Any
-from tokenize_anything import model_registry
+import torchvision
+import numpy as np
+import matplotlib.pyplot as plt
+import torchvision.transforms as TS
+
+from PIL import Image
+from ram import inference_tag2text
+from typing import List, Dict, Any
 from tokenize_anything.utils.image import im_rescale
 from tokenize_anything.utils.image import im_vstack
-import time
-import torchvision
-import os
-import sys
-from PIL import Image
-sys.path.append("/home/dyn/multimodal/Grounded-Segment-Anything")
-sys.path.append("/home/dyn/multimodal/Grounded-Segment-Anything/Tag2Text")
 
 try:
-    from Tag2Text.models import tag2text
-    from Tag2Text import inference_tag2text, inference_ram
-    import torchvision.transforms as TS
-except ImportError as e:
-    print("Tag2text sub-package not found. Please check your PATH. ")
-    raise e
-
-try: 
     from groundingdino.util.inference import Model
 except ImportError as e:
     print("Import Error: Please install Grounded Segment Anything following the instructions in README.")
     raise e
 
 class MyAutomaticMaskGenerator:
-    
+
     # 初始化，把参数传入进来
     def __init__(self, tagging_model, grounding_dino_model, tap_model, sbert_model):
         self.tagging_model = tagging_model
@@ -43,11 +33,11 @@ class MyAutomaticMaskGenerator:
         # Tag2Text用到的变换
         self.tagging_transform = TS.Compose([
             TS.Resize((384, 384)),
-            TS.ToTensor(), 
+            TS.ToTensor(),
             TS.Normalize(mean=[0.485, 0.456, 0.406],
-                            std=[0.229, 0.224, 0.225]),
+                         std=[0.229, 0.224, 0.225]),
         ])
-        
+
         self.specified_tags='None'
         self.classes = None
         # 一些增加和删减的类别
@@ -56,14 +46,14 @@ class MyAutomaticMaskGenerator:
         # self.remove_classes = ["modern"]
         self.remove_classes = [
             "room", "kitchen", "office", "home", "corner",
-            "shadow", "carpet", "photo", "shade", "stall", "space", "aquarium", 
-            "image", "city", "blue", "skylight", "hallway", 
+            "shadow", "carpet", "photo", "shade", "stall", "space", "aquarium",
+            "image", "city", "blue", "skylight", "hallway",
             "modern", "salon", "doorway", "wall lamp","floor"
         ]
-        
+
     @torch.no_grad()
     def generate(self, image: np.ndarray, save_path: str = None, save_vis: bool = True) -> List[Dict[str, Any]]:
-        
+
         # start_time = time.time()
         #####################################################
         ############## 一、使用tag2text先生成标签 ############
@@ -79,14 +69,14 @@ class MyAutomaticMaskGenerator:
         caption=res[2]
         text_prompt=res[0].replace(' |', ',')
         classes = self.process_tag_classes(
-            text_prompt, 
+            text_prompt,
             add_classes = self.add_classes,
             remove_classes = self.remove_classes,
         )
         # end_time = time.time()
         # execution_time = end_time - start_time
         # print(f"tag2text Model output time: {execution_time} seconds")
-        
+
         #####################################################
         ############## 二、使用dino为标签生成边界框 ############
         #####################################################
@@ -101,8 +91,8 @@ class MyAutomaticMaskGenerator:
         if len(detections.class_id) > 0:
             # print(f"Before NMS: {len(detections.xyxy)} boxes")
             nms_idx = torchvision.ops.nms(
-                torch.from_numpy(detections.xyxy), 
-                torch.from_numpy(detections.confidence), 
+                torch.from_numpy(detections.xyxy),
+                torch.from_numpy(detections.confidence),
                 0.5
             ).numpy().tolist()
             # print(f"After NMS: {len(detections.xyxy)} boxes")
@@ -117,8 +107,8 @@ class MyAutomaticMaskGenerator:
         # end_time = time.time()
         # execution_time = end_time - start_time
         # print(f"dino Model output time: {execution_time} seconds")
-        
-        
+
+
         #####################################################
         ########## 三、使用tap为边界框生成mask和caption ########
         #####################################################
@@ -158,7 +148,7 @@ class MyAutomaticMaskGenerator:
         captions = self.tap_model.generate_text(sem_tokens)
         caption_fts = self.sbert_model.encode(captions, convert_to_tensor=True, device="cuda")
         caption_fts = caption_fts / caption_fts.norm(dim=-1, keepdim=True)
-        
+
         # end_time = time.time()
         # execution_time = end_time - start_time
         # print(f"tap Model output time: {execution_time} seconds")
@@ -166,7 +156,7 @@ class MyAutomaticMaskGenerator:
         # print(scores)
         # print(captions)
 
-        
+
         #####################################################
         ########## 四、最后的可视化并保存结果 ########
         #####################################################
@@ -187,7 +177,7 @@ class MyAutomaticMaskGenerator:
                 # 保存裁剪后的图像
                 plt.savefig(save_path, bbox_inches='tight', pad_inches=0)
                 plt.close()  # 关闭图形，防止显示在 notebook 中
-                
+
         # 在循环中，对于每个 mask，根据 detections 获取相应的边界框坐标，并保存原始图像
         # for i, (mask, concept, caption, caption_ft) in enumerate(zip(masks, concepts, captions, caption_fts)):
         #     # 找到 mask 中 True 值的坐标
@@ -218,7 +208,7 @@ class MyAutomaticMaskGenerator:
                 "caption_ft": caption_ft.cpu()
             })
         return result
-    
+
 
     def process_tag_classes(self, text_prompt:str, add_classes:List[str]=[], remove_classes:List[str]=[]) -> list[str]:
         '''
@@ -233,8 +223,8 @@ class MyAutomaticMaskGenerator:
         for c in remove_classes:
             classes = [obj_class for obj_class in classes if c not in obj_class.lower()]
         return classes
-    
-    
+
+
     def show_masks(self, masks, concepts, captions, ax, detections):
         '''
         保存图像可视化用

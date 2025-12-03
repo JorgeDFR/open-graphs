@@ -8,27 +8,16 @@ sys.path.append("/home/user/workspace/open-graphs")
 
 import copy
 import json
-import os
-import pickle
 import gzip
-import argparse
-import random
-import matplotlib
-import numpy as np
-import pandas as pd
-import open3d as o3d
-import torch
-import torch.nn.functional as F
 import hydra
-import cv2
-from omegaconf import DictConfig
+import pickle
 import distinctipy
-from some_class.map_calss import MapObjectList
-from utils.utils import  load_models
-import json
-from PIL import Image
-from pathlib import Path
+import numpy as np
+import open3d as o3d
+
 from tqdm import trange
+from omegaconf import DictConfig
+from some_class.map_calss import MapObjectList
 
 
 def merge_point_clouds_with_labels(pcds, labels, class_colors_sk_disk):
