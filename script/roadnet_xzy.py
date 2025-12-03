@@ -2,8 +2,10 @@
 2024.02.21
 根据自动路网构建路网层、环境层、道路层，并上色
 """
+
 import sys
-sys.path.append("/code1/dyn/github_repos/OpenGraph")
+sys.path.append("/home/user/workspace/open-graphs")
+
 import os
 import numpy as np
 import open3d as o3d
@@ -47,7 +49,7 @@ def road_point(save_lane_path):
         3: [],
         4: []
     }
-    
+
     vertex_2_count = defaultdict(int)
     vertex_3_count = defaultdict(int)
     vertex_4_count = defaultdict(int)
@@ -62,7 +64,7 @@ def road_point(save_lane_path):
             midpoint = ((start_point[0] + end_point[0]) / 2, (start_point[1] + end_point[1]) / 2,(start_point[2] + end_point[2]) / 2)
             if midpoint not in clusters[1]:
                 clusters[1].append(midpoint)
-        # 对于权值为2的情况，计数       
+        # 对于权值为2的情况，计数
         elif weight == 2:
             vertex_2_count[start_idx] += 1
             vertex_2_count[end_idx] += 1
@@ -77,7 +79,7 @@ def road_point(save_lane_path):
     clusters[2] = [points[vertex] for vertex, count in vertex_2_count.items() if count == 4]
     clusters[3] = [points[vertex] for vertex, count in vertex_3_count.items() if count == 6]
     clusters[4] = [points[vertex] for vertex, count in vertex_4_count.items() if count == 8]
-    
+
     #四类道路点序号0-12 13-18 19-20 21
     # 输出分类结果
     # for weight, points_list in clusters.items():
@@ -85,13 +87,13 @@ def road_point(save_lane_path):
     #     for point in points_list:
     #         print(point)
     return clusters
-     
+
 def color_by_road_net(save_lane_path):
     #point and line
 
 
     graph_file = save_lane_path
-    
+
     points,lines_0=init_graph(graph_file,-50)
     points_np = np.array(points)
     print(points_np.shape)
@@ -110,10 +112,10 @@ def color_by_road_net(save_lane_path):
     spheres_road=[]
     #上色
     # 路网层圆柱体颜色
-    color_cylinder = [1.0, 192/255, 0] 
+    color_cylinder = [1.0, 192/255, 0]
     # 路网层球体 道路层四类球体 环境层
-    # color_sphere = [[0, 1, 0.117],[0, 0, 0],[0.7, 1, 0],[0.7, 0, 1],[0.7, 1, 1],[0, 0, 1]] 
-    color_sphere = [[1.0, 192/255, 0],[1, 83/255, 10/255],[10/255, 188/255, 1.0],[252/255, 154/255, 7/255],[7/255, 152/255,31/255],[145/255, 52/255, 235/255]] 
+    # color_sphere = [[0, 1, 0.117],[0, 0, 0],[0.7, 1, 0],[0.7, 0, 1],[0.7, 1, 1],[0, 0, 1]]
+    color_sphere = [[1.0, 192/255, 0],[1, 83/255, 10/255],[10/255, 188/255, 1.0],[252/255, 154/255, 7/255],[7/255, 152/255,31/255],[145/255, 52/255, 235/255]]
     # 创建已绘制线段的集合
     drawn_lines = set()
     # 创建路网球体
@@ -122,7 +124,7 @@ def color_by_road_net(save_lane_path):
         sphere = o3d.geometry.TriangleMesh.create_sphere(radius=sphere_radius)
         sphere.translate(point)
         sphere.paint_uniform_color(color_sphere[0])
-        spheres.append(sphere)   
+        spheres.append(sphere)
     # 创建圆柱体
     for line in lines:
             idx1, idx2 = line[0], line[1]
@@ -134,7 +136,7 @@ def color_by_road_net(save_lane_path):
             end_point = np.array(points[idx2])
             direction = end_point - start_point
             length = np.linalg.norm(direction)
-            
+
             direction_normalized = direction / length
             # 计算与方向向量正交的一个向量作为新的 y 轴
             y_axis = np.array([0, 1, 0])
@@ -158,13 +160,13 @@ def color_by_road_net(save_lane_path):
             cylinder.paint_uniform_color(color_cylinder)
             # cylinder.compute_vertex_normals()
             cylinders.append(cylinder)
-    
-    
+
+
     # 创建道路层球体
     road_points=road_point(save_lane_path)
     spheres_colors=[]
     for weight, points_list in road_points.items():
-        for point in points_list:      
+        for point in points_list:
             # print(point)
             sphere_road = o3d.geometry.TriangleMesh.create_sphere(radius=road_sphere_radius)
             sphere_road.translate(point)
@@ -172,7 +174,7 @@ def color_by_road_net(save_lane_path):
             spheres_color=color_sphere[weight]
             sphere_road.compute_vertex_normals()
             spheres_colors.append(spheres_color)
-            spheres_road.append(sphere_road) 
+            spheres_road.append(sphere_road)
 
     #创建环境层球体
     # Toppoint=(-4.447468,  173.154769)
@@ -195,9 +197,9 @@ def color_by_road_net(save_lane_path):
     lines=o3d.utility.Vector2iVector(np.array([[i, len(lines)-1] for i in range(len(lines))]))
      )
     line_set.paint_uniform_color([145/255, 52/255, 235/255])  # 设置连接线的颜色
-    
-    
-    
+
+
+
     # vis = o3d.visualization.Visualizer()
     # vis.create_window()
     # for sphere in spheres:

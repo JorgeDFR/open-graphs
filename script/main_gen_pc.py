@@ -1,9 +1,11 @@
 """
-2024.01.18 
+2024.01.18
 读取离线的caption和mask，映射到点云
 """
+
 import sys
-sys.path.append("/code1/dyn/github_repos/OpenGraph")
+sys.path.append("/home/user/workspace/open-graphs")
+
 import numpy as np
 import cv2
 import torch
@@ -158,7 +160,7 @@ def main(cfg : DictConfig):
         objects = merge_detections_to_objects(cfg, detection_list, objects, agg_sim)
     if cfg.vis_all:
         o3d.visualization.draw_geometries(point_clouds)
-    
+
     # 构建完地图之后，降采样地图降分辨率，去噪一下
     if bg_objects is not None:
         bg_objects = MapObjectList([_ for _ in bg_objects.values() if _ is not None])
@@ -193,4 +195,4 @@ def main(cfg : DictConfig):
         print(f"保存点云地图到 {pcd_save_path}")
 
 if __name__ == "__main__":
-    main()        
+    main()

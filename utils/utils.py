@@ -1,9 +1,11 @@
 """
-2024.01.17 
+2024.01.17
 工具函数文件
 """
+
 import sys
-sys.path.append("/code1/dyn/github_repos/OpenGraph")
+sys.path.append("/home/user/workspace/open-graphs")
+
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
@@ -13,7 +15,6 @@ from typing import List, Dict, Optional, Any
 from tokenize_anything import model_registry
 sys.path.append("/home/dyn/multimodal/Grounded-Segment-Anything")
 sys.path.append("/home/dyn/multimodal/Grounded-Segment-Anything/Tag2Text")
-sys.path.append("/code1/dyn/github_repos/OpenGraph")
 from some_class.amg_class import MyAutomaticMaskGenerator
 from some_class.map_calss import DetectionList
 import open3d as o3d
@@ -36,7 +37,7 @@ except ImportError as e:
     print("Tag2text sub-package not found. Please check your PATH. ")
     raise e
 
-try: 
+try:
     from groundingdino.util.inference import Model
 except ImportError as e:
     print("Import Error: Please install Grounded Segment Anything following the instructions in README.")
@@ -66,13 +67,13 @@ def load_models(cfg):
     tagging_model = tagging_model.eval().to("cuda")
     # dino模型分割
     grounding_dino_model = Model(
-        model_config_path = cfg.gd_path, 
-        model_checkpoint_path = cfg.gd_weights, 
+        model_config_path = cfg.gd_path,
+        model_checkpoint_path = cfg.gd_weights,
         device="cuda"
     )
     # 使用模型和图像创建分割器
     model_type = "tap_vit_l"
-    checkpoint = cfg.tap_path 
+    checkpoint = cfg.tap_path
     tap_model = model_registry[model_type](checkpoint=checkpoint)
     concept_weights = cfg.tap_merge_path
     tap_model.concept_projector.reset_weights(concept_weights)
@@ -90,17 +91,17 @@ def project(points, image, calib):
     '''
     把点云投影到图像上，输入点云，输出点云对应的图像横纵坐标
     '''
-    points_homo = np.insert(points, 3, 1, axis=1).T 
+    points_homo = np.insert(points, 3, 1, axis=1).T
     pointCloud = np.delete(points, np.where(points_homo[0, :] < 0), axis=0)
     # 以列为基准, 删除深度x=0的点
-    points_homo = np.delete(points_homo, np.where(points_homo[0, :] < 0), axis=1)  
+    points_homo = np.delete(points_homo, np.where(points_homo[0, :] < 0), axis=1)
     # 相机坐标系3D点=相机02内参*雷达到激光的变换矩阵*雷达3D点
-    proj_lidar = calib['P_rect_20'].dot(calib['T_cam2_velo']).dot(points_homo)  
+    proj_lidar = calib['P_rect_20'].dot(calib['T_cam2_velo']).dot(points_homo)
     # 以列为基准, 删除投影图像点中深度z<0(在投影图像后方)的点 #3xN
-    cam = np.delete(proj_lidar, np.where(proj_lidar[2, :] < 0), axis=1)  
+    cam = np.delete(proj_lidar, np.where(proj_lidar[2, :] < 0), axis=1)
     pointCloud = np.delete(pointCloud, np.where(proj_lidar[2, :] < 0), axis=0)
     # 前两行元素分布除以第三行元素(归一化到相机坐标系z=1平面)(x=x/z, y =y/z)
-    cam[:2, :] /= cam[2, :]  
+    cam[:2, :] /= cam[2, :]
     # 投影到图像
     IMG_H, IMG_W, _ = image.shape
     # 过滤掉不在相机上的
@@ -108,7 +109,7 @@ def project(points, image, calib):
     u_out = np.logical_or(u < 0, u > IMG_W)
     v_out = np.logical_or(v < 0, v > IMG_H)
     outlier = np.logical_or(u_out, v_out)
-    cam = np.delete(cam, np.where(outlier), axis=1) 
+    cam = np.delete(cam, np.where(outlier), axis=1)
     points = np.delete(pointCloud, np.where(outlier), axis=0)
     u,v,z  = cam
     pixels = np.dstack((v,u)).squeeze()
@@ -117,7 +118,7 @@ def project(points, image, calib):
 
 def create_object_pcd(image, pc, pixels, mask, obj_color=None) -> o3d.geometry.PointCloud:
     '''
-    得到rgb的点云 
+    得到rgb的点云
     '''
     mask_for_pc = mask[pixels[:, 0].astype(int), pixels[:, 1].astype(int)]
     points = pc[mask_for_pc]
@@ -180,8 +181,8 @@ def process_pcd(cfg, pcd, use_db = True):
         # cl, index = pcd.remove_statistical_outlier(nb_neighbors=50,std_ratio=1.0)
         # pcd = pcd.select_by_index(index)
         pcd = pcd_denoise_dbscan(
-            pcd, 
-            eps=cfg.dbscan_eps, 
+            pcd,
+            eps=cfg.dbscan_eps,
             min_points=cfg.dbscan_min_points
         )
     # o3d.visualization.draw_geometries([pcd])
@@ -191,7 +192,7 @@ def process_pcd(cfg, pcd, use_db = True):
 
 def get_bounding_box(pcd):
     '''
-    得到点云的bbox 
+    得到点云的bbox
     '''
     # 推荐使用定向的
     if len(pcd.points) >= 4:
@@ -216,7 +217,7 @@ def gobs_to_detection_list(
     BG_CAPTIONS_Pro = None,
 ):
     '''
-    从gobs返回一个DetectionList对象,所有对象在当前帧中。 
+    从gobs返回一个DetectionList对象,所有对象在当前帧中。
     '''
     detection_lists = DetectionList()
     bg_list = DetectionList()
@@ -240,7 +241,7 @@ def gobs_to_detection_list(
         # 实例设置随机颜色
         color = np.random.random(3)
         # 这个对象最少得5个点吧，否则不要也罢
-        if len(camera_object_pcd.points) < max(cfg.min_points_threshold, 5): 
+        if len(camera_object_pcd.points) < max(cfg.min_points_threshold, 5):
             continue
         if trans_pose is not None:
             global_object_pcd = camera_object_pcd.transform(trans_pose)
@@ -252,11 +253,11 @@ def gobs_to_detection_list(
         pcd_bbox.color = [0,1,0]
         # 如果物体太小了，也要删掉
         if pcd_bbox.volume() < 1e-6:
-            continue   
+            continue
         bg_class = None
         # 如果使用背景的话，比较与背景的相似度是否超过阈值
         if cfg.use_bg:
-            caption_ft_cuda = caption_ft.to("cuda") 
+            caption_ft_cuda = caption_ft.to("cuda")
             for i in range(len(bg_fts)):
                 similarity = F.cosine_similarity(bg_fts[i], caption_ft_cuda, dim=-1)
                 if similarity > cfg.bg_rate:
@@ -288,7 +289,7 @@ def gobs_to_detection_list(
 
 def denoise_objects(cfg, objects: MapObjectList, bg=False):
     '''
-    整个地图去噪 
+    整个地图去噪
     '''
     for i in range(len(objects)):
         og_object_pcd = objects[i]['pcd']
@@ -343,7 +344,7 @@ def compute_3d_iou(bbox1, bbox2, padding=0, use_iou=True):
         return iou
     else:
         return max_overlap
-    
+
 
 def compute_overlap_matrix(cfg, objects: MapObjectList):
     '''
@@ -398,7 +399,7 @@ def to_tensor(numpy_array, device=None):
         return torch.from_numpy(numpy_array)
     else:
         return torch.from_numpy(numpy_array).to(device)
-    
+
 def merge_overlap_objects(cfg, objects: MapObjectList, overlap_matrix: np.ndarray):
     '''
     最后后处理，融合重叠物体
@@ -588,7 +589,7 @@ def caption_extract(idx, spacy_nlp, caption_ori):
         if token in INTEREST_NOUNS:
             main_noun = token
             break
-    
+
     # 记录当前提取的主语在token中idx
     main_noun_idx = tokens.index(main_noun)
 
@@ -596,13 +597,13 @@ def caption_extract(idx, spacy_nlp, caption_ori):
     for adj in adjectives:
         if (tokens.index(adj) < main_noun_idx) and (len(main_adj)<2):
             main_adj += [adj]
-    
+
     # 如果没有提取到有效的形容词 那得看看是不是遗漏了一些
     if not main_adj:
         for token in tokens:
             if token in INTEREST_ADJS and (len(main_adj)<2) and (tokens.index(token) < main_noun_idx):
                 main_adj += [token]
-            
+
 
     extra_captions = main_adj + [main_noun]
     extra_captions = " ".join(extra_captions)
@@ -648,7 +649,7 @@ def class_objects(cfg, sbert_model, objects: MapObjectList, bg_objects: MapObjec
             caption_only_ft = caption_only_ft.squeeze()
             # 再使用融合的caption_ft
             objects_sbert_fts = objects[i]["ft"]
-            objects_sbert_fts = objects_sbert_fts.to("cuda") 
+            objects_sbert_fts = objects_sbert_fts.to("cuda")
             # 两个加权融合
             final_ft = caption_only_ft*cfg.vis_caption_weight+objects_sbert_fts*cfg.vis_ft_weight
             # 与class计算相似性
@@ -670,7 +671,7 @@ def class_objects(cfg, sbert_model, objects: MapObjectList, bg_objects: MapObjec
                 caption_only_ft = caption_only_ft.squeeze()
                 # 再使用融合的caption_ft
                 objects_sbert_fts = bg_objects[i]["ft"]
-                objects_sbert_fts = objects_sbert_fts.to("cuda") 
+                objects_sbert_fts = objects_sbert_fts.to("cuda")
                 # 两个加权融合
                 final_ft = caption_only_ft*0.5+objects_sbert_fts*0.5
                 # 与class计算相似性
@@ -691,7 +692,7 @@ def class_objects(cfg, sbert_model, objects: MapObjectList, bg_objects: MapObjec
         You are a classifier that can categorize a caption phrase into one of the following categories based on a caption phrase.
         List of categories: [car, bicycle, motorcycle, truck, person, bicyclist, motorcyclist, road,
         parking, sidewalk, building, fence, vegetation, trunk, terrain, pole, traffic-sign].
-        You only need to generate one category name which must be included in this list. 
+        You only need to generate one category name which must be included in this list.
         The output format is 'Category name: [[your summarized category name itself]]'
         Emphasizing again: Do not provide words beyond the given list!!! Please test it yourself and regenerate it if it exceeds the list.
         """
@@ -699,7 +700,7 @@ def class_objects(cfg, sbert_model, objects: MapObjectList, bg_objects: MapObjec
             caption_obj = objects[i]["caption"]
             # 生成llama对话
             dialogs: List[Dialog] = [
-                [{"role": "system", 
+                [{"role": "system",
                 "content": DEFAULT_PROMPT}
                 ,{"role": "user", "content": caption_example1}
                 ,{"role": "assistant", "content": "Category name: [car]"}
@@ -745,7 +746,7 @@ def class_objects(cfg, sbert_model, objects: MapObjectList, bg_objects: MapObjec
                 caption_obj = bg_objects[i]["caption"]
                 # 生成llama对话
                 dialogs: List[Dialog] = [
-                    [{"role": "system", 
+                    [{"role": "system",
                     "content": DEFAULT_PROMPT}
                     ,{"role": "user", "content": caption_example1}
                     ,{"role": "assistant", "content": "Category name: [car]"}
@@ -795,28 +796,28 @@ def class_objects(cfg, sbert_model, objects: MapObjectList, bg_objects: MapObjec
         You are a classifier that can categorize a caption phrase into one of the following categories based on a caption phrase.
         List of categories: [car, bicycle, motorcycle, truck, person, bicyclist, motorcyclist, road,
         parking, sidewalk, building, fence, vegetation, trunk, terrain, pole, traffic-sign]
-        . You only need to generate one category name which must be included in this list. 
+        . You only need to generate one category name which must be included in this list.
         The output format is 'Category name: [[your summarized category name itself]]'
         Note that I may enter all the captions at the same time, please output them in order
-        Here's an example for you. 
-        Input: 
+        Here's an example for you.
+        Input:
         'a car parked on the street
         a red and white sign
         grass on the side of the road
-        '. 
-        You should output like this: 
+        '.
+        You should output like this:
         'Category name: [car]
         Category name: [traffic-sign]
         Category name: [terrain]
         '
-        Emphasizing again: Do not provide words beyond the given list!!! 
+        Emphasizing again: Do not provide words beyond the given list!!!
         Please test it yourself and regenerate it if it exceeds the list.
         Emphasizing again: Do not provide words beyond the given list!!!
         """
         caption_objects = objects.get_stacked_str_torch("caption")
         batch_size = cfg.gpt_max_num
         num_batches = len(caption_objects) // batch_size + (len(caption_objects) % batch_size > 0)
-    
+
         for batch_idx in range(num_batches):
             print("Batch num:", batch_idx,"/",num_batches)
             start_idx = batch_idx * batch_size
@@ -864,7 +865,7 @@ def class_objects(cfg, sbert_model, objects: MapObjectList, bg_objects: MapObjec
     else:
         raise NotImplementedError
     return objects, bg_objects
-    
+
 
 
 
@@ -881,7 +882,3 @@ def show_captions(objects: MapObjectList, bg_objects: MapObjectList):
             caption_obj = bg_objects[i]["caption"]
             class_obj = bg_objects[i]["class_sk"]
             print(f"bgobject id {i} capitons: {caption_obj} ******** class_name: {class_obj}")
-
-
-
-

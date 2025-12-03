@@ -1,9 +1,11 @@
 """
-2024.01.22 
+2024.01.22
 将得到的地图可视化并实现查询等
 """
+
 import sys
-sys.path.append("/code1/dyn/github_repos/OpenGraph")
+sys.path.append("/home/user/workspace/open-graphs")
+
 import copy
 import networkx as nx
 from scipy.spatial import KDTree
@@ -129,13 +131,13 @@ def load_result(result_path):
     if isinstance(results, dict):
         objects = MapObjectList()
         objects.load_serializable(results["objects"])
-        
+
         if results['bg_objects'] is None:
             bg_objects = None
         else:
             bg_objects = MapObjectList()
             bg_objects.load_serializable(results["bg_objects"])
-        instance_colors = distinctipy.get_colors(len(objects)+len(bg_objects), pastel_factor=0.5)  
+        instance_colors = distinctipy.get_colors(len(objects)+len(bg_objects), pastel_factor=0.5)
         instance_colors = {str(i): c for i, c in enumerate(instance_colors)}
         # print(instance_colors)
         # instance_colors = results['instance_colors']
@@ -157,7 +159,7 @@ def main(cfg : DictConfig):
     # result_path = args.result_path
     assert not (cfg.result_path is None), \
         "Either result_path must be provided."
-    
+
     # 加载pcd结果
     objects, bg_objects, instance_colors = load_result(cfg.result_path)
     # 必须要有sbert模型哦
@@ -170,13 +172,13 @@ def main(cfg : DictConfig):
     if not cfg.no_tap:
         print("Initializing TAP model...")
         model_type = "tap_vit_l"
-        checkpoint = cfg.tap_path 
+        checkpoint = cfg.tap_path
         tap_model = model_registry[model_type](checkpoint=checkpoint)
         concept_weights = cfg.tap_merge_path
         tap_model.concept_projector.reset_weights(concept_weights)
         tap_model.text_decoder.reset_cache(max_batch_size=1000)
         tap_model = tap_model.to("cuda")
-        print("Done initializing TAP model.")        
+        print("Done initializing TAP model.")
     # 为了生成颜色
     cmap = matplotlib.colormaps.get_cmap("turbo")
     # 如果存在背景物体，放在后面一部分
@@ -195,30 +197,30 @@ def main(cfg : DictConfig):
     openai.api_base = cfg.api_base
     TIMEOUT = 25  # timeout in seconds
     DEFAULT_PROMPT = """
-    You are an object picker that picks the three objects from a sequence of objects 
-    that are most relevant to the query statement, the first being the most relevant. 
-    The input format is: object index value and corresponding description, and query statement. 
+    You are an object picker that picks the three objects from a sequence of objects
+    that are most relevant to the query statement, the first being the most relevant.
+    The input format is: object index value and corresponding description, and query statement.
     The output format is: The three most relevant objects are [Index0,Index1,Index2].
-    Here's some example for you. 
-    Input: 
-    'The sequence of objects: [0]A silver car.  [1]A green tree.  [2]A paved city road.  [3]A red car. 
+    Here's some example for you.
+    Input:
+    'The sequence of objects: [0]A silver car.  [1]A green tree.  [2]A paved city road.  [3]A red car.
     Query statement: driving tools
-    '. 
-    You should output like this: 
+    '.
+    You should output like this:
     '[0,3,2]
     '
-    Input: 
-    'The sequence of objects: [0]A green tree.  [1]A white building.  [2]A paved city road.  [3]A red car. 
+    Input:
+    'The sequence of objects: [0]A green tree.  [1]A white building.  [2]A paved city road.  [3]A red car.
     Query statement: a comfortable bed
-    '. 
-    You should output like this: 
+    '.
+    You should output like this:
     '[1,3,2]
     '
     Please note! Be sure to give three index values! No more and no less!
     Please note! Be sure to give three index values! No more and no less!
     Please note! Be sure to give three index values! No more and no less!
-    
-    
+
+
     Note that the following are real inputs:
     """
     formatted_sentences = []
@@ -227,7 +229,7 @@ def main(cfg : DictConfig):
     caption_all = " ".join(formatted_sentences)
     caption_all = "The sequence of objects: "+caption_all+"\n"
     # print(caption_all)
-    
+
     # 创建可视化对象 设置窗口名
     vis = o3d.visualization.VisualizerWithKeyCallback()
     if cfg.result_path is not None:
@@ -243,7 +245,7 @@ def main(cfg : DictConfig):
     # 向场景中添加几何图形并创建相应的着色器
     for geometry in pcds:
     # for geometry in pcds + bboxes:
-        vis.add_geometry(geometry)  
+        vis.add_geometry(geometry)
     # 是否存在场景图配置 以及 场景图的相关可视化语句
     if cfg.scenegraph_vis:
         assert not (cfg.scenegraph_path is None), \
@@ -305,7 +307,7 @@ def main(cfg : DictConfig):
             pcd.colors = o3d.utility.Vector3dVector(np.tile(color, (len(pcd.points), 1)))
         for pcd in pcds:
             vis.update_geometry(pcd)
-            
+
     def color_by_class(vis):
         '''
         根据语义类别，按照semantickitti类别着色
@@ -318,7 +320,7 @@ def main(cfg : DictConfig):
             pcd.colors = o3d.utility.Vector3dVector(np.tile(color, (len(pcd.points), 1)))
         for pcd in pcds:
             vis.update_geometry(pcd)
-            
+
     def color_by_rgb(vis):
         '''
         RGB着色
@@ -336,24 +338,24 @@ def main(cfg : DictConfig):
         max_value = similarities.max()
         min_value = similarities.min()
         normalized_similarities = (similarities - min_value) / (max_value - min_value)
-        probs = F.softmax(similarities, dim=0)      
-        max_prob_idx = torch.argmax(probs)       
-        similarity_colors = cmap(normalized_similarities.detach().cpu().numpy())[..., :3]        
+        probs = F.softmax(similarities, dim=0)
+        max_prob_idx = torch.argmax(probs)
+        similarity_colors = cmap(normalized_similarities.detach().cpu().numpy())[..., :3]
         # 更新点云对象的颜色属性，以反映每个对象的相似性
         for i in range(len(objects)):
             pcd = pcds[i]
-            pcd.colors = o3d.utility.Vector3dVector(        
+            pcd.colors = o3d.utility.Vector3dVector(
                 np.tile(
                     [
-                        similarity_colors[i, 0].item(),     
+                        similarity_colors[i, 0].item(),
                         similarity_colors[i, 1].item(),
                         similarity_colors[i, 2].item()
-                    ], 
-                    (len(pcd.points), 1)    
+                    ],
+                    (len(pcd.points), 1)
                 )
             )
         for pcd in pcds:
-            vis.update_geometry(pcd)        
+            vis.update_geometry(pcd)
 
     def color_by_sbert_sim(vis):
         '''
@@ -380,7 +382,7 @@ def main(cfg : DictConfig):
         print(objects[top_indices[2]]["caption"])
         sim_and_update(similarities, vis)
 
-    
+
     def color_by_llm(vis):
         '''
         文本查询
@@ -419,9 +421,9 @@ def main(cfg : DictConfig):
                 pcd = pcds[i]
                 pcd.colors = o3d.utility.Vector3dVector(np.tile([0.7,0.7,0.7], (len(pcd.points), 1)))
         for pcd in pcds:
-            vis.update_geometry(pcd)        
+            vis.update_geometry(pcd)
 
-        
+
 
     def show_captions(mask, caption, ax, original_size):
         '''
@@ -443,7 +445,7 @@ def main(cfg : DictConfig):
             caption_y = center_y
             ax.text(caption_x, caption_y, f"{caption}", color='black', fontsize=8, bbox=dict(facecolor=color, alpha=1.0))
 
- 
+
     def color_by_image_sim(vis):
         '''
         图像查询
@@ -500,9 +502,9 @@ def main(cfg : DictConfig):
             if cfg.save_image_vis_path:
                 Path(cfg.save_image_vis_path).parent.mkdir(parents=True, exist_ok=True)
                 random_file_name = str(random.randint(1,100))
-                save_image_vis_path = Path(os.path.join(cfg.save_image_vis_path, f"vis_{random_file_name}"))                
+                save_image_vis_path = Path(os.path.join(cfg.save_image_vis_path, f"vis_{random_file_name}"))
                 plt.savefig(str(save_image_vis_path), bbox_inches='tight', pad_inches=0)
-                plt.close() 
+                plt.close()
         # 物体的特征，来自融合后的caption现在编码的特征和增量融合的特征
         objects_sbert_fts = objects.get_stacked_values_torch("ft")
         objects_sbert_fts = objects_sbert_fts.to("cuda")
@@ -510,9 +512,9 @@ def main(cfg : DictConfig):
             # 物体的特征，来自融合后的caption现在编码的特征和增量融合的特征
             objects_caption_fts = objects.get_stacked_values_torch("captions_ft")
             objects_sbert_fts = objects_sbert_fts*cfg.vis_ft_weight + objects_caption_fts*cfg.vis_caption_weight
-        similarities = F.cosine_similarity(caption_fts, objects_sbert_fts, dim=-1)    
+        similarities = F.cosine_similarity(caption_fts, objects_sbert_fts, dim=-1)
         sim_and_update(similarities, vis)
-        
+
     main.show_scene_graph = False
     def vis_scene_graph(vis):
         if cfg.scenegraph_path is None or (not cfg.scenegraph_vis):
@@ -525,30 +527,30 @@ def main(cfg : DictConfig):
             for geometry in scene_graph_geometries:
                 vis.add_geometry(geometry, reset_bounding_box=False)
         main.show_scene_graph = not main.show_scene_graph
-    
+
     def save_viewpoint(vis):
         global saved_viewpoint
         saved_viewpoint = view_control.convert_to_pinhole_camera_parameters()
         # 保存视角参数
         view_params = view_control.convert_to_pinhole_camera_parameters()
         o3d.io.write_pinhole_camera_parameters(cfg.vis_sequence+"_vis_params.json", view_params)
-        
+
     def restore_viewpoint(vis):
         global saved_viewpoint
         if saved_viewpoint is not None:
             view_control.convert_from_pinhole_camera_parameters(saved_viewpoint)
-            
+
     vis.register_key_callback(ord("B"), toggle_bg_pcd)
     vis.register_key_callback(ord("C"), color_by_class)
     vis.register_key_callback(ord("I"), color_by_instance)
     vis.register_key_callback(ord("R"), color_by_rgb)
     vis.register_key_callback(ord("F"), color_by_sbert_sim)
-    vis.register_key_callback(ord("P"), color_by_image_sim)  
-    vis.register_key_callback(ord("G"), vis_scene_graph)  
-    vis.register_key_callback(ord("M"), color_by_llm)   
-    vis.register_key_callback(ord("V"), save_viewpoint) 
-    vis.register_key_callback(ord("X"), restore_viewpoint)       
-    vis.run()   
+    vis.register_key_callback(ord("P"), color_by_image_sim)
+    vis.register_key_callback(ord("G"), vis_scene_graph)
+    vis.register_key_callback(ord("M"), color_by_llm)
+    vis.register_key_callback(ord("V"), save_viewpoint)
+    vis.register_key_callback(ord("X"), restore_viewpoint)
+    vis.run()
 
 if __name__ == "__main__":
     main()

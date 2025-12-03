@@ -1,5 +1,6 @@
 import sys
-sys.path.append("/code1/dyn/github_repos/OpenGraph")
+sys.path.append("/home/user/workspace/open-graphs")
+
 import open3d as o3d
 import hydra
 from omegaconf import DictConfig
@@ -25,7 +26,7 @@ def create_edge_lines(points, lines=None, colors=[0, 1, 0]):
     edge_points = np.array(points)
     edge_lines = np.array(
         lines) if lines is not None else lines_from_ordered_points(edge_points)
-    edge_colors = np.array(colors)    
+    edge_colors = np.array(colors)
     # 创建直线
     edge_line_set = o3d.geometry.LineSet()
     edge_line_set.points = o3d.utility.Vector3dVector(edge_points)
@@ -78,17 +79,17 @@ def main(cfg : DictConfig):
     Instance_trans = np.array([0, -100, 0])
     # our_pcd = o3d.io.read_point_cloud("../results/05/pcd/rgb_pc.pcd") # 读取pcd文件
     our_pcd = o3d.io.read_point_cloud(cfg.our_pcd) # 读取pcd文件
-    
+
     # 加载pcd结果
     objects, bg_objects = load_result(cfg.result_path)
     # 不用背景物体
     # if bg_objects is not None:
     #     indices_bg = np.arange(len(objects), len(objects) + len(bg_objects))
     #     objects.extend(bg_objects)
-    
+
     bboxes = copy.deepcopy(objects.get_values("bbox"))
 
-    #从script.roadnet_xzy中取到路网层球体、路网层连接圆柱、道路层球体（其中最后一个是最上边环境层球体）、道路层和环境层连线 
+    #从script.roadnet_xzy中取到路网层球体、路网层连接圆柱、道路层球体（其中最后一个是最上边环境层球体）、道路层和环境层连线
     spheres,cylinders,spheres_road,line_set,spheres_colors=color_by_road_net(cfg.save_lane_path)
     # 获得道路层球体中心的xy值
     spheres_centers = []
@@ -96,31 +97,31 @@ def main(cfg : DictConfig):
     for i in range(len(spheres_road) - 1):
         spheres_center = spheres_road[i].get_center()
         spheres_centers.append(spheres_center)
-        
+
     spheres_centers = np.array(spheres_centers)
     spheres_xy = spheres_centers[:, [0, 2]]
     # 扩展维数以便后续计算
     spheres_xy = np.expand_dims(spheres_xy, axis=0)
-    
+
     vis = o3d.visualization.VisualizerWithKeyCallback()
     vis.create_window(window_name=f'Open3D', width=1920, height=1280)
     view_control = vis.get_view_control()
-    
+
     import os
     loaded_view_params = None
     if os.path.isfile("/code1/dyn/github_repos/OpenGraph/param.json"):
         loaded_view_params = o3d.io.read_pinhole_camera_parameters("/code1/dyn/github_repos/OpenGraph/param.json")
         view_control.convert_from_pinhole_camera_parameters(loaded_view_params)
-    
+
     vis.add_geometry(our_pcd.voxel_down_sample(1))
-    
+
     if os.path.isfile("/code1/dyn/github_repos/OpenGraph/param.json"):
         print("view_control ing")
         loaded_view_params = o3d.io.read_pinhole_camera_parameters("/code1/dyn/github_repos/OpenGraph/param.json")
         view_control.convert_from_pinhole_camera_parameters(loaded_view_params)
         print("view_control ed")
-    
-    
+
+
     # 加载物体间关系
     scene_graph_geometries = []
     with open(cfg.scenegraph_path, "r") as f:
@@ -133,9 +134,9 @@ def main(cfg : DictConfig):
         pair_indices_set.add((id1, id2))
     pair_indices_set = list(pair_indices_set)
     pair_indices_set = np.array(pair_indices_set)
-    
+
     # 采样200对关系，具体多少物体不得而知
-    num_sampled_pairs = min(300, pair_indices_set.shape[0])  
+    num_sampled_pairs = min(300, pair_indices_set.shape[0])
     sampled_indices = random.sample(range(pair_indices_set.shape[0]), num_sampled_pairs)  # 随机选择索引
     sampled_pairs = pair_indices_set[sampled_indices]
     # 把涉及到的索引提取出来
@@ -146,7 +147,7 @@ def main(cfg : DictConfig):
         my_set.add(sampled_pairs[i,0])
         my_set.add(sampled_pairs[i,1])
     sampled_indices = list(my_set)
-   
+
     inst_sphere_lines = []
     instances = []
     for i in sampled_indices:
@@ -155,11 +156,11 @@ def main(cfg : DictConfig):
         cube = o3d.geometry.TriangleMesh.create_box(width=1.5, height=2.5, depth=1.5)
         # 平移到bbox_center位置
         cube.translate(bbox_center)
-        cube.translate(Instance_trans)      
+        cube.translate(Instance_trans)
 
         bbox_xy = np.array([[bbox_center[0], bbox_center[2]]])
-        bbox_xy = np.expand_dims(bbox_xy, axis=1)    
-        # 计算当前小方块和道路层各个球体的距离    
+        bbox_xy = np.expand_dims(bbox_xy, axis=1)
+        # 计算当前小方块和道路层各个球体的距离
         distances = np.linalg.norm(spheres_xy - bbox_xy, axis=2)
         # 得到最近距离的索引
         closest_sphere_index = np.argmin(distances)
@@ -168,16 +169,16 @@ def main(cfg : DictConfig):
         inst_sphere_line = create_edge_lines(
                 points = np.array([bbox_center + Instance_trans, spheres_centers[closest_sphere_index]]),
                 lines = np.array([[0, 1]]),
-                colors = spheres_colors[closest_sphere_index],            
+                colors = spheres_colors[closest_sphere_index],
         )
         inst_sphere_lines.append(inst_sphere_line)
-        
+
         # 设置颜色
         gray_color = spheres_colors[closest_sphere_index]
         cube.paint_uniform_color(gray_color)
         cube.compute_vertex_normals()
         instances.append(cube)
-        
+
     obj_centers = []
     for obj in objects:
         bbox = obj['bbox']
@@ -209,7 +210,7 @@ def main(cfg : DictConfig):
             loaded_view_params = o3d.io.read_pinhole_camera_parameters("/code1/dyn/github_repos/OpenGraph/param.json")
             view_control.convert_from_pinhole_camera_parameters(loaded_view_params)
             print("view_control ed")
-            
+
 
     main.show_instance = False
     def vis_instance(vis):
@@ -223,7 +224,7 @@ def main(cfg : DictConfig):
         if loaded_view_params is not None:
             view_control.convert_from_pinhole_camera_parameters(loaded_view_params)
         print("main.show_instance", main.show_instance)
-        main.show_instance = not main.show_instance   
+        main.show_instance = not main.show_instance
 
     main.show_scene_graph = False
     def vis_scene_graph(vis):
@@ -236,8 +237,8 @@ def main(cfg : DictConfig):
         if loaded_view_params is not None:
             view_control.convert_from_pinhole_camera_parameters(loaded_view_params)
         print("main.show_scene_graph", main.show_scene_graph)
-        main.show_scene_graph = not main.show_scene_graph         
-    
+        main.show_scene_graph = not main.show_scene_graph
+
     main.show_layer234 = False
     def show_layer245_vis(vis):
         if main.show_layer234:
@@ -247,7 +248,7 @@ def main(cfg : DictConfig):
                 vis.remove_geometry(sphere_road)
             for cylinder in cylinders:
                 vis.remove_geometry(cylinder)
-            
+
         else:
             for sphere in spheres:
                 vis.add_geometry(sphere)
@@ -255,12 +256,12 @@ def main(cfg : DictConfig):
                 vis.add_geometry(sphere_road)
             for cylinder in cylinders:
                 vis.add_geometry(cylinder)
-            
+
         if loaded_view_params is not None:
             view_control.convert_from_pinhole_camera_parameters(loaded_view_params)
         print("main.show_layer234", main.show_layer234)
-        main.show_layer234 = not main.show_layer234 
-    
+        main.show_layer234 = not main.show_layer234
+
     main.show_inst_sphere_lines = False
     def vis_inst_sphere(vis):
         if main.show_inst_sphere_lines:
@@ -274,17 +275,17 @@ def main(cfg : DictConfig):
         if loaded_view_params is not None:
             view_control.convert_from_pinhole_camera_parameters(loaded_view_params)
         print("main.show_inst_sphere_lines", main.show_inst_sphere_lines)
-        main.show_inst_sphere_lines = not main.show_inst_sphere_lines             
+        main.show_inst_sphere_lines = not main.show_inst_sphere_lines
 
 
-    vis.register_key_callback(ord("V"), save_view_params)  
-    vis.register_key_callback(ord("X"), restore_viewpoint)  
+    vis.register_key_callback(ord("V"), save_view_params)
+    vis.register_key_callback(ord("X"), restore_viewpoint)
     vis.register_key_callback(ord("I"), vis_instance)
     vis.register_key_callback(ord("G"), vis_scene_graph)
-    vis.register_key_callback(ord("O"), show_layer245_vis)       
+    vis.register_key_callback(ord("O"), show_layer245_vis)
     vis.register_key_callback(ord("L"), vis_inst_sphere)
     vis.run()
-    
+
 
 if __name__ == "__main__":
-    main()    
+    main()

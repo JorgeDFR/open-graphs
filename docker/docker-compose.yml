@@ -1,0 +1,21 @@
+services:
+  open-graphs:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: open_graphs
+    container_name: open_graphs
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - /dev/dri:/dev/dri
+      - ${HOME}/data:/home/user/data  # Folder with the datasets (semantic-kitti, etc.)
+    environment:
+      - color_prompt=no
+      - DISPLAY=${DISPLAY}
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
+    network_mode: host
+    tty: true
+    stdin_open: true
+    runtime: nvidia

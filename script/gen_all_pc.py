@@ -2,8 +2,10 @@
 2024.01.30
 执行定量分析，语义分割，得到我们的点云
 """
+
 import sys
-sys.path.append("/code1/dyn/github_repos/OpenGraph")
+sys.path.append("/home/user/workspace/open-graphs")
+
 import copy
 import json
 import os
@@ -62,7 +64,7 @@ def load_result(result_path):
         else:
             bg_objects = MapObjectList()
             bg_objects.load_serializable(results["bg_objects"])
-        instance_colors = distinctipy.get_colors(len(objects)+len(bg_objects), pastel_factor=0.5)  
+        instance_colors = distinctipy.get_colors(len(objects)+len(bg_objects), pastel_factor=0.5)
         instance_colors = {str(i): c for i, c in enumerate(instance_colors)}
     elif isinstance(results, list):
         objects = MapObjectList()
@@ -84,7 +86,7 @@ def load_colors(cfg):
     with open(file_path, 'r') as json_file:
         class_colors_sk_disk = json.load(json_file)
     return class_colors_sk_disk
-    
+
 @hydra.main(version_base=None, config_path="../config", config_name="semantickitti")
 def main(cfg : DictConfig):
     assert not (cfg.result_path is None), \
@@ -104,20 +106,20 @@ def main(cfg : DictConfig):
     pcds = copy.deepcopy(objects.get_values("pcd"))
     class_labels = copy.deepcopy(objects.get_values("class_sk"))
     bboxes = copy.deepcopy(objects.get_values("bbox"))
-    
+
     # 得到全局带标签的点云
-    full_point_cloud_with_labels = merge_point_clouds_with_labels(pcds, class_labels, class_colors_sk_disk) 
+    full_point_cloud_with_labels = merge_point_clouds_with_labels(pcds, class_labels, class_colors_sk_disk)
     full_point_cloud_with_labels = full_point_cloud_with_labels.voxel_down_sample(0.1)
     # vis = o3d.visualization.Visualizer()
     # vis.create_window()
     # vis.add_geometry(full_point_cloud_with_labels)
     # for bbox in bboxes:
-    #     vis.add_geometry(bbox) 
+    #     vis.add_geometry(bbox)
     # vis.run()
     # o3d.visualization.draw_geometries([full_point_cloud_with_labels])
     # 保存点云
     print("Save our pcd to", cfg.our_pcd)
     o3d.io.write_point_cloud(cfg.our_pcd, full_point_cloud_with_labels)
-    
+
 if __name__ == "__main__":
     main()

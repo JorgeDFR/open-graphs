@@ -1,9 +1,11 @@
 """
-2024.01.17 
+2024.01.17
 传入三个大模型，得到数据集中的图像的caption和mask
 """
+
 import sys
-sys.path.append("/code1/dyn/github_repos/OpenGraph")
+sys.path.append("/home/user/workspace/open-graphs")
+
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
@@ -55,6 +57,4 @@ def main(cfg : DictConfig):
                 pickle.dump(masks_result, f)
 
 if __name__ == "__main__":
-    main()           
-    
-
+    main()

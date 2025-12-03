@@ -1,5 +1,6 @@
 import sys
-sys.path.append("/code1/dyn/github_repos/OpenGraph")
+sys.path.append("/home/user/workspace/open-graphs")
+
 import pickle
 import gzip
 from pathlib import Path
@@ -21,13 +22,13 @@ def load_result(result_path):
     if isinstance(results, dict):
         objects = MapObjectList()
         objects.load_serializable(results["objects"])
-        
+
         if results['bg_objects'] is None:
             bg_objects = None
         else:
             bg_objects = MapObjectList()
             bg_objects.load_serializable(results["bg_objects"])
-        instance_colors = distinctipy.get_colors(len(objects)+len(bg_objects), pastel_factor=0.5)  
+        instance_colors = distinctipy.get_colors(len(objects)+len(bg_objects), pastel_factor=0.5)
         instance_colors = {str(i): c for i, c in enumerate(instance_colors)}
         # print(instance_colors)
         # instance_colors = results['instance_colors']
@@ -59,10 +60,10 @@ def geometric_dist_matrix(cfg, objects: MapObjectList):
                 pcd_j = objects[j]['pcd']
                 pcd_j_points = np.asarray(pcd_j.points)
                 pcd_j_center = np.mean(pcd_j_points, axis=0)
-                
+
                 # Skip if the boxes do not overlap at all (saves computation)
                 distance = np.linalg.norm(pcd_i_center - pcd_j_center)
-                
+
                 # Calculate the ratio of points within the threshold
                 dist_matrix[i, j] = 1.0 / (distance*100)
 
@@ -94,7 +95,7 @@ def build_SG(cfg, objects: MapObjectList):
                 cols.append(j)
                 weights.append(object_dist[i, j])
                 rows.append(j)
-                cols.append(i)   
+                cols.append(i)
     adjacency_matrix = csr_matrix((weights, (rows, cols)), shape=(num_instance, num_instance))
 
     # Find the minimum spanning tree of the weighted adjacency matrix
@@ -109,7 +110,7 @@ def build_SG(cfg, objects: MapObjectList):
             indices = np.where(labels == label)[0]
             _total += len(indices.tolist())
             components.append(indices.tolist())
-    
+
     # Initialize a list to store the minimum spanning trees of connected components
     minimum_spanning_trees = []
     relations = []
@@ -123,7 +124,7 @@ def build_SG(cfg, objects: MapObjectList):
             _mst = minimum_spanning_tree(subgraph)
             # Add the minimum spanning tree to the list
             minimum_spanning_trees.append(_mst)
-    
+
         # if not (Path(cfg.save_pcd_path) / "object_relations.json").exists():
         for componentidx, component in enumerate(components):
             if len(component) <= 1:
@@ -167,7 +168,7 @@ def build_SG(cfg, objects: MapObjectList):
     return relations
 
 @hydra.main(version_base=None, config_path="../config", config_name="semantickitti")
-def main(cfg : DictConfig):    
+def main(cfg : DictConfig):
     # 加载pcd结果
     objects, _, _ = load_result(cfg.result_path)
     print("Pcd loaded successfully!")
@@ -176,4 +177,4 @@ def main(cfg : DictConfig):
     object_edges = build_SG(cfg, objects)
 
 if __name__ == "__main__":
-    main()    
+    main()

@@ -1,9 +1,11 @@
 """
-2024.01.18 
+2024.01.18
 用于点云之间的融合的一些工具代码
 """
+
 import sys
-sys.path.append("/code1/dyn/github_repos/OpenGraph")
+sys.path.append("/home/user/workspace/open-graphs")
+
 import torch
 import torch.nn.functional as F
 from some_class.map_calss import DetectionList, MapObjectList
@@ -20,7 +22,7 @@ from utils.utils import get_bounding_box, process_pcd
 def compute_spatial_similarities(detection_list: DetectionList, objects: MapObjectList) -> torch.Tensor:
     '''
     计算检测结果与物体之间的空间相似度
-    
+
     输入:
         DetectionList: 新的检测结果，M个物体
         objects: 地图中的N个物体
@@ -36,10 +38,10 @@ def compute_spatial_similarities(detection_list: DetectionList, objects: MapObje
 def compute_iou_batch(bbox1: torch.Tensor, bbox2: torch.Tensor) -> torch.Tensor:
     '''
     计算两组轴线对齐的三维边界框之间的 IoU。
-    
+
     bbox1: (M, V, D), e.g. (M, 8, 3)
     bbox2: (N, V, D), e.g. (N, 8, 3)
-    
+
     返回: MxN 空间相似性
     '''
     # 计算box轴对齐的框架
@@ -85,7 +87,7 @@ def preprocess_text(text):
     caption分词，去除常见冠词等
     '''
     # 移除常见冠词和介词
-    stop_words = set(["a","with", "the", "in", "on", "ahead", "is", "to", "next", "down", "of", "along", "and"]) 
+    stop_words = set(["a","with", "the", "in", "on", "ahead", "is", "to", "next", "down", "of", "along", "and"])
     words = re.findall(r'\b\w+\b', text.lower())
     filtered_words = [word for word in words if word not in stop_words]
     return ' '.join(filtered_words)
@@ -143,8 +145,8 @@ def aggregate_similarities(cfg, spatial_sim: torch.Tensor,  ft_similarities: tor
 
 def merge_detections_to_objects(
     cfg,
-    detection_list: DetectionList, 
-    objects: MapObjectList, 
+    detection_list: DetectionList,
+    objects: MapObjectList,
     agg_sim: torch.Tensor
 ) -> MapObjectList:
     '''
@@ -184,7 +186,7 @@ def merge_obj2_into_obj1(cfg, obj1, obj2, bg=False, class_name = None):
                 obj1[k] += obj2[k]
             elif k == "inst_color":
                 # 保持原有object的颜色
-                obj1[k] = obj1[k] 
+                obj1[k] = obj1[k]
             else:
                 raise NotImplementedError
         else:
@@ -231,7 +233,7 @@ def caption_merge(cfg, objects: MapObjectList):
                 caption_obj = caption_obj[num_last_comma_index + 2:]
             # 生成llama对话
             dialogs: List[Dialog] = [
-                [{"role": "system", 
+                [{"role": "system",
                 "content": "You are a phrase summarizer who can summarize a most complete phrase that best represents \
                 them from a sequence of phrases separated by commas, including as much effective information, adjective \
                 and elements as possible without severe conflicting. \
@@ -266,7 +268,7 @@ def caption_merge(cfg, objects: MapObjectList):
     return objects, generator
 
 
-        
+
 def captions_ft(objects: MapObjectList, bg_objects: MapObjectList, sbert_model):
     '''
     提取融合后的caption特征

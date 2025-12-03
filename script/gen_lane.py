@@ -1,10 +1,12 @@
 """
-2024.02.27 
+2024.02.27
 测试：二维轨迹得到分割后的路网，同时生成道路节点
 """
+
 import sys
+sys.path.append("/home/user/workspace/open-graphs")
+
 import numpy as np
-sys.path.append("/code1/dyn/github_repos/OpenGraph")
 import matplotlib.pyplot as plt
 import json
 from pathlib import Path
@@ -42,7 +44,7 @@ def calculate_angle(vectors):
     vectors = vectors[non_zero_indices]
     for i in range(len(vectors)):
         norm_i = np.linalg.norm(vectors[i])
-        vectors[i] = vectors[i] / norm_i  
+        vectors[i] = vectors[i] / norm_i
     angles = []
     raw_angles = []
     for i in range(len(vectors)):
@@ -154,7 +156,7 @@ def calculate_angle_point(point1, point2, point3):
     # 将弧度转换为角度
     angle_deg = math.degrees(angle_rad)
     return angle_deg
-    
+
 def dividing(nodes, edges):
     '''
     分割路网
@@ -180,7 +182,7 @@ def dividing(nodes, edges):
         elif connections_max == 3:
             edges[i] = (u, v, 3)
         elif connections_max == 4:
-            edges[i] = (u, v, 4)               
+            edges[i] = (u, v, 4)
         else:
             edges[i] = (u, v, 1)
         # 使一条边的w相同
@@ -189,8 +191,8 @@ def dividing(nodes, edges):
             if (v, u, 2) in edges and (u, v, 1) in edges:
                 edges[i] = (u, v, 2)
     return edges
-                
-                
+
+
 def road_point(points, lines):
     clusters = {
         1: [],
@@ -211,7 +213,7 @@ def road_point(points, lines):
             midpoint = ((start_point[0] + end_point[0]) / 2, (start_point[1] + end_point[1]) / 2,(start_point[2] + end_point[2]) / 2)
             if midpoint not in clusters[1]:
                 clusters[1].append(midpoint)
-        # 对于权值为2的情况，计数       
+        # 对于权值为2的情况，计数
         elif weight == 2:
             vertex_2_count[start_idx] += 1
             vertex_2_count[end_idx] += 1
@@ -225,12 +227,12 @@ def road_point(points, lines):
     clusters[2] = [points[vertex] for vertex, count in vertex_2_count.items() if count == 4]
     clusters[3] = [points[vertex] for vertex, count in vertex_3_count.items() if count == 6]
     clusters[4] = [points[vertex] for vertex, count in vertex_4_count.items() if count == 8]
-    return clusters      
-                
+    return clusters
+
 
 @hydra.main(version_base=None, config_path="../config", config_name="semantickitti")
 def main(cfg : DictConfig):
-    
+
     datasets = SemanticKittiDataset(cfg.basedir, cfg.sequence, stride=cfg.stride, start=cfg.start, end=cfg.end)
     # 得到二维轨迹
     pose_file = datasets.pose_path
@@ -244,8 +246,8 @@ def main(cfg : DictConfig):
     # extract (x,y,z)
     current_poses = np.array([pose[:3, 3] for pose in poses])
     current_poses = [[row[0], row[2]] for row in current_poses]
-    
-    current_poses = np.array(current_poses)       
+
+    current_poses = np.array(current_poses)
     # 使用KD树构建二维轨迹点的索引
     kd_tree = KDTree(current_poses)
 
@@ -281,12 +283,12 @@ def main(cfg : DictConfig):
         cluster_points = use_points[cluster_labels == label]
         cluster_center = np.mean(cluster_points, axis=0)
         cluster_centers.append(cluster_center)
-        
+
     # 保留每个簇中心点
     unique_cluster_centers = np.array(cluster_centers)\
     # 所有道路结点
     all_path_nodes = np.vstack((unique_cluster_centers,duandians))
-    
+
     # 计算轨迹点与道路节点之间的距离
     distances = distance.cdist(all_path_nodes, current_poses)
     # 为每个道路节点找到距离小于阈值的轨迹点的索引列表
@@ -310,26 +312,26 @@ def main(cfg : DictConfig):
     for index in sorted(node_index_mapping.keys()):
         node_sequence.append(node_index_mapping[index])
     print("道路节点顺序：", node_sequence)
-    
+
     # 得到路径
     paths, paths_index = generate_paths(node_sequence, all_path_nodes)
-    
+
     nodes, edges = refine_nodes(all_path_nodes, paths_index, dis=20)
-    
+
     # 新增加的列
     new_column = np.ones((edges.shape[0], 1))  # 创建一个 n×1 的全零数组
     # 在原始数组中添加新列
     edges = np.hstack((edges, new_column)).astype(int)
-    
+
     new_column = np.zeros((nodes.shape[0], 1))  # 创建一个 n×1 的全零数组
     # 在原始数组中添加新列
     nodes = np.hstack((nodes, new_column))
-    
+
     nodes = [tuple(row) for row in nodes]
     edges = [tuple(row) for row in edges]
     edges = dividing(nodes, edges)
     road_points = road_point(nodes, edges)
-    
+
     edges = [(int(u), int(v), int(w)) for u, v, w in edges]  # 将 numpy.int64 转换为 int
     road_points = {key: [point for point in points] for key, points in road_points.items()}  # 将 numpy 数组转换为 Python 列表
     data = {
@@ -339,7 +341,7 @@ def main(cfg : DictConfig):
     }
     with open(cfg.save_lane_path, "w") as f:
         json.dump(data, f)
-    
+
     plt.clf()
     # 接受到路网之后，绘制路网和路径
     if nodes is not None:
@@ -348,18 +350,18 @@ def main(cfg : DictConfig):
             x = [nodes[u][0], nodes[v][0]]
             y = [nodes[u][1], nodes[v][1]]
             #L交叉路口
-            if w == 2:     
+            if w == 2:
                 plt.plot(x, y, linewidth=1, color='darkblue')
-            #T交叉路口   
+            #T交叉路口
             elif w == 3:
                 plt.plot(x, y, linewidth=1, color='darkred')
-                #十字交叉路口   
+                #十字交叉路口
             elif w == 4:
                 plt.plot(x, y, linewidth=1, color='darkorange')
             #正常直路
             else:
                 plt.plot(x, y, linewidth=1, color='darkgreen')
-    
+
     # 可视化
     # plt.scatter([p[0] for p in current_poses], [p[1] for p in current_poses], c='black', s=20)
     # plt.scatter([p[0] for p in current_poses], [p[1] for p in current_poses], c=mean_angles, s=20, cmap='viridis')
