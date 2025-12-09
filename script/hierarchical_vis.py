@@ -14,6 +14,7 @@ from omegaconf import DictConfig
 from some_class.map_calss import MapObjectList
 from script.roadnet_xzy import color_by_road_net
 
+
 def lines_from_ordered_points(points):
         lines = [[i, i + 1] for i in range(0, points.shape[0] - 1, 1)]
         return np.array(lines)

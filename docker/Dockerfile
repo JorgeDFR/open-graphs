@@ -16,38 +16,23 @@ RUN apt-get update && \
 # ---------------------------
 RUN pip install --no-cache-dir \
         tyro open_clip_torch wandb h5py openai hydra-core distinctipy \
+        spacy open3d natsort \
         faiss-cpu \
         flash-attn gradio-image-prompter \
+        git+https://github.com/baaivision/tokenize-anything.git \
+        git+https://github.com/meta-llama/llama.git \
         groundeddino_vl \
-        sentence-transformers \
-        timm==1.0.17
+        sentence-transformers
 
 # ---------------------------
-# Pytorch3d
-# ---------------------------
-RUN git clone https://github.com/facebookresearch/pytorch3d.git /tmp/pytorch3d && \
-    pip install --no-cache-dir /tmp/pytorch3d && \
-    rm -rf /tmp/pytorch3d
-
-# ---------------------------
-# Tokenize Anything
-# ---------------------------
-RUN pip install --no-cache-dir \
-    git+https://github.com/baaivision/tokenize-anything.git
-
-# ---------------------------
-# Llama
-# ---------------------------
-RUN git clone https://github.com/meta-llama/llama.git /tmp/llama && \
-    pip install --no-cache-dir /tmp/llama && \
-    rm -rf /tmp/llama
-
-# ---------------------------
-# Recognize Anything
+# Recognize Anything (Tag2Text)
 # ---------------------------
 RUN git clone https://github.com/xinyu1205/recognize-anything.git /tmp/recognize-anything && \
     pip install --no-cache-dir -r /tmp/recognize-anything/requirements.txt && \
     pip install --no-cache-dir /tmp/recognize-anything && \
+    pip install --no-cache-dir \
+        timm==1.0.17 \
+        transformers==4.50.0 && \
     rm -rf /tmp/recognize-anything
 
 # ---------------------------
@@ -60,7 +45,8 @@ ENV CMAKE_CUDA_ARCHITECTURES=${CUDA_SM_LIST} \
 RUN git clone https://github.com/CiSong10/MinkowskiEngine.git /tmp/MinkowskiEngine && \
     cd /tmp/MinkowskiEngine && \
     git checkout cuda12-installation && \
-    pip install --no-cache-dir . && \
+    sed -i 's/\bauto __raw = __to_address(__r.get());/auto __raw = std::__to_address(__r.get());/' /usr/include/c++/11/bits/shared_ptr_base.h && \
+    python setup.py install --force_cuda --blas=openblas && \
     rm -rf /tmp/MinkowskiEngine
 
 # ---------------------------
@@ -68,7 +54,8 @@ RUN git clone https://github.com/CiSong10/MinkowskiEngine.git /tmp/MinkowskiEngi
 # ---------------------------
 RUN git clone https://github.com/PRBonn/4DMOS.git /tmp/4DMOS && \
     cd /tmp/4DMOS && \
-    make install && \
+    git checkout v0.1 && \
+    python setup.py install && \
     rm -rf /tmp/4DMOS
 
 # ---------------------------

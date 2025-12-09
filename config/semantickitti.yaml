@@ -25,7 +25,7 @@ gd_weights: ${models_dir}/groundingdino/groundingdino_swint_ogc.pth
 tap_path: ${models_dir}/tokenize-anything/tap_vit_l_v1_0.pkl
 tap_merge_path: ${models_dir}/tokenize-anything/merged_2560.pkl
 llama_ckpt_dir: ${models_dir}/llama2/llama-2-7b-chat/
-llama_tokenizer_path: ${models_dir}/llama2/tokenizer.model
+llama_tokenizer_path: ${models_dir}/llama2/llama-2-7b-chat/tokenizer.model
 sbert_path: ${models_dir}/sbert/all-minilm-l6-v2
 mos_path: ${models_dir}/4dmos/10_scans.ckpt
 

@@ -6,6 +6,9 @@
 import sys
 sys.path.append("/home/user/workspace/open-graphs")
 
+import warnings
+warnings.filterwarnings("ignore") # Suppress all warnings
+
 import re
 import json
 import faiss
@@ -22,14 +25,10 @@ from llama import Dialog
 from ram.models import tag2text
 from collections import Counter
 from tokenize_anything import model_registry
+from groundeddino_vl.utils.inference import Model
 from sentence_transformers import SentenceTransformer
-from some_class.map_calss import DetectionList, MapObjectList, MyAutomaticMaskGenerator
-
-try:
-    from groundingdino.util.inference import Model
-except ImportError as e:
-    print("Import Error: Please install Grounded Segment Anything following the instructions in README.")
-    raise e
+from some_class.map_calss import DetectionList, MapObjectList
+from some_class.amg_class import MyAutomaticMaskGenerator
 
 
 # spacy分词时的一些先验词汇表

@@ -10,6 +10,7 @@ services:
       - /tmp/.X11-unix:/tmp/.X11-unix
       - /dev/dri:/dev/dri
       - ${HOME}/data:/home/user/data  # Folder with the datasets (semantic-kitti, etc.)
+      - ${HOME}/devel/open-graphs:/home/user/workspace/open-graphs  # Temp: devel
     environment:
       - color_prompt=no
       - DISPLAY=${DISPLAY}

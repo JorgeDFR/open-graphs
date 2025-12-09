@@ -11,9 +11,9 @@ import numpy as np
 from pathlib import Path
 from omegaconf import DictConfig
 from some_class.map_calss import MapObjectList
-
 from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import connected_components, minimum_spanning_tree
+
 
 def load_result(result_path):
     '''

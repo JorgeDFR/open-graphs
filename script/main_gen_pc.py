@@ -14,7 +14,7 @@ import torch
 import pickle
 import numpy as np
 import open3d as o3d
-import mos4d.models.models_test as models
+import mos4d.models.models as models
 
 from utils.utils import *
 from utils.merge import *
@@ -62,7 +62,7 @@ def main(cfg : DictConfig):
     datasets = SemanticKittiDataset(cfg.basedir, cfg.sequence, stride=cfg.stride, start=cfg.start, end=cfg.end)
     print("Load a dataset with a size of:", len(datasets))
     # 初始化地图
-    objects = MapObjectList(device="cuda")
+    objects = MapObjectList()
     # 是否过滤动态目标，如果需要就加载模型
     mos_model = None
     if cfg.filter_dynamic:

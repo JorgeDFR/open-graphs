@@ -15,6 +15,26 @@ HF_TOKEN="hf_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 mkdir -p "$MODELS_FOLDER"
 
 # ===============================
+# Prerequisites: Check git lfs and git xet
+# ===============================
+check_prerequisites() {
+  if ! command -v git-lfs &>/dev/null; then
+    echo "git-lfs not found. Please install it: https://git-lfs.com/"
+    exit 1
+  fi
+
+  if ! command -v git-xet &>/dev/null; then
+    echo "git-xet not found. Please install it: https://huggingface.co/docs/hub/xet/using-xet-storage#git-xet"
+    exit 1
+  fi
+
+  git lfs install
+  git xet install
+}
+
+check_prerequisites
+
+# ===============================
 # Helper: Ask user whether to overwrite
 # ===============================
 confirm_overwrite() {

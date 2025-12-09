@@ -16,11 +16,6 @@ from typing import List, Dict, Any
 from tokenize_anything.utils.image import im_rescale
 from tokenize_anything.utils.image import im_vstack
 
-try:
-    from groundingdino.util.inference import Model
-except ImportError as e:
-    print("Import Error: Please install Grounded Segment Anything following the instructions in README.")
-    raise e
 
 class MyAutomaticMaskGenerator:
 
@@ -64,7 +59,7 @@ class MyAutomaticMaskGenerator:
         raw_image = image_pil.resize((384, 384))
         raw_image = self.tagging_transform(raw_image).unsqueeze(0).to("cuda")
         # 1.2 图像输入进模型推理
-        res = inference_tag2text.inference(raw_image , self.tagging_model, self.specified_tags)
+        res = inference_tag2text(raw_image , self.tagging_model, self.specified_tags)
         # 1.3 得到结果，并设定一些需要的classes
         caption=res[2]
         text_prompt=res[0].replace(' |', ',')
@@ -144,7 +139,8 @@ class MyAutomaticMaskGenerator:
         concepts, scores = self.tap_model.predict_concept(outputs["sem_embeds"][mask_index])
         concepts, scores = [x for x in (concepts, scores)]
         # 推理captions
-        sem_tokens = outputs["sem_tokens"][mask_index].unsqueeze_(1)
+        #sem_tokens = outputs["sem_tokens"][mask_index].unsqueeze_(1)
+        sem_tokens = outputs["sem_tokens"][mask_index]
         captions = self.tap_model.generate_text(sem_tokens)
         caption_fts = self.sbert_model.encode(captions, convert_to_tensor=True, device="cuda")
         caption_fts = caption_fts / caption_fts.norm(dim=-1, keepdim=True)
@@ -155,7 +151,6 @@ class MyAutomaticMaskGenerator:
         # print(concepts)
         # print(scores)
         # print(captions)
-
 
         #####################################################
         ########## 四、最后的可视化并保存结果 ########
