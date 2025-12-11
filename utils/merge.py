@@ -12,7 +12,8 @@ import torch.nn.functional as F
 
 from tqdm import trange
 from typing import List
-from llama import Llama, Dialog
+from transformers import BitsAndBytesConfig
+from transformers import LlamaForCausalLM, LlamaTokenizer
 from utils.utils import get_bounding_box, process_pcd
 from some_class.map_calss import DetectionList, MapObjectList
 from sklearn.metrics.pairwise import cosine_similarity
@@ -205,69 +206,84 @@ def merge_obj2_into_obj1(cfg, obj1, obj2, bg=False, class_name = None):
 
 
 def caption_merge(cfg, objects: MapObjectList):
-    '''
-    将多个caption融合为一个
-    '''
-    # LLAMA预训练模型载入
-    generator = Llama.build(
-        ckpt_dir=cfg.llama_ckpt_dir,
-        tokenizer_path=cfg.llama_tokenizer_path,
-        max_seq_len=cfg.llama_max_seq_len,
-        max_batch_size=cfg.llama_max_batch_size,
+    # Load the model in 8-bit to fit in VRAM
+    bnb_config = BitsAndBytesConfig(
+        load_in_8bit=True,
+        llm_int8_threshold=6.0  # optional, tweak for stability
     )
-    # 用作示范的prompt example
+    model = LlamaForCausalLM.from_pretrained(
+        cfg.llama_ckpt_dir,
+        device_map="auto",
+        torch_dtype=torch.float16,
+        quantization_config=bnb_config
+    )
+    model.eval()
+
+    # Load tokenizer
+    tokenizer = LlamaTokenizer.from_pretrained(
+        cfg.llama_ckpt_dir,
+    )
+
+    # Example captions
     caption_example1 = "a car parked on the street, a car parked on the street, a white car parked on the street, a car parked on the street, a black car parked on the street, a white car parked on the street, a white car on the road, a mirror of a white car"
     caption_example2 = "a red and white sign, a red and white sign, a red and white sign, a red and white sign, a red and white sign, a red and white sign, a red and white sign"
     caption_example3 = "a triangular street sign, the back of a triangular sign"
+    system_prompt = (
+        "You are a phrase summarizer who can summarize a most complete phrase that best represents "
+        "them from a sequence of phrases separated by commas, including as much effective information, "
+        "adjective and elements as possible without severe conflicting. "
+        "You only need to produce a string of summarized phrase. "
+        "Please produce nothing else!!!!!!!! Only one phrase. "
+        "The output format is: 'Summarized phrase: [[your summarized phrase itself]]'"
+    )
 
     for i in trange(len(objects)):
         caption_obj = objects[i]["caption"]
+
+        # Too many comma-separated captions? Trim:
         if ", " in caption_obj:
-            # 如果观测次数太多，字符串会太长，则需要删除一些前面的观测
             comma_count = caption_obj.count(', ')
             if comma_count > cfg.max_caption_num:
-                num_last_comma_index = 0
+                idx = 0
                 for j in range(cfg.max_caption_num):
-                    num_last_comma_index = caption_obj.rfind(', ', 0, num_last_comma_index - 1)
-                # 删除倒数第三个逗号前面的内容
-                caption_obj = caption_obj[num_last_comma_index + 2:]
-            # 生成llama对话
-            dialogs: List[Dialog] = [
-                [{"role": "system",
-                "content": "You are a phrase summarizer who can summarize a most complete phrase that best represents \
-                them from a sequence of phrases separated by commas, including as much effective information, adjective \
-                and elements as possible without severe conflicting. \
-                You only need to produce a string of summarized phrase.\
-                Please produce nothing else!!!!!!!! Only one phrase. \
-                The output format is: 'Summarized parase: [[your summarized parase itself]]'"}
-                ,{"role": "user", "content": caption_example1}
-                ,{"role": "assistant", "content": "Summarized parase: [a white car parked on the street]"}
-                ,{"role": "user", "content": caption_example2}
-                ,{"role": "assistant", "content": "Summarized parase: [a red and white sign]"}
-                ,{"role": "user", "content": caption_example3}
-                ,{"role": "assistant", "content": "Summarized parase: [the back of a triangular street sign]"}
-                ,{"role": "user", "content": caption_obj}],
-            ]
+                    idx = caption_obj.rfind(', ', 0, idx - 1)
+                caption_obj = caption_obj[idx + 2:]
 
-            # llama进行回答
-            results = generator.chat_completion(
-                dialogs,  # type: ignore
-                max_gen_len= None,
+            # Build the HF model prompt
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": caption_example1},
+                {"role": "assistant", "content": "Summarized phrase: [a white car parked on the street]"},
+                {"role": "user", "content": caption_example2},
+                {"role": "assistant", "content": "Summarized phrase: [a red and white sign]"},
+                {"role": "user", "content": caption_example3},
+                {"role": "assistant", "content": "Summarized phrase: [the back of a triangular street sign]"},
+                {"role": "user", "content": caption_obj},
+            ]
+            inputs = tokenizer.apply_chat_template(
+                messages,
+                add_generation_prompt=True,
+                tokenize=True,
+                return_dict=True,
+                return_tensors="pt",
+            ).to(model.device)
+
+            # Generate output
+            output_ids = model.generate(
+                **inputs,
+                max_new_tokens=256,
                 temperature=0.6,
                 top_p=0.9,
             )
-            # 读取llama回答结果中的generation content作为caption融合结果
-            for dialog, result in zip(dialogs, results):
-                input_text = result["generation"]["content"]
-                pattern = r'\[([^]]+)\]'  # 匹配方括号中的内容
-                match = re.search(pattern, input_text)
-                extracted_content = []
-                if match:
-                    extracted_content = match.group(1)
-                objects[i]["caption"] = extracted_content
-    return objects, generator
+            gen_ids = output_ids[0][inputs["input_ids"].size(1):]
+            output_text = tokenizer.decode(gen_ids, skip_special_tokens=True)
 
+            # Extract the bracketed phrase: [ ... ]
+            match = re.search(r'\[([^]]+)\]', output_text)
+            summarized = match.group(1) if match else caption_obj
+            objects[i]["caption"] = summarized
 
+    return objects, model
 
 def captions_ft(objects: MapObjectList, bg_objects: MapObjectList, sbert_model):
     '''

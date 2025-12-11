@@ -18,9 +18,9 @@ RUN pip install --no-cache-dir \
         tyro open_clip_torch wandb h5py openai hydra-core distinctipy \
         spacy open3d natsort \
         faiss-cpu \
+        accelerate bitsandbytes \
         flash-attn gradio-image-prompter \
         git+https://github.com/baaivision/tokenize-anything.git \
-        git+https://github.com/meta-llama/llama.git \
         groundeddino_vl \
         sentence-transformers
 

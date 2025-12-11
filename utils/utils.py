@@ -21,15 +21,14 @@ import torch.nn.functional as F
 
 from typing import List
 from tqdm import trange
-from llama import Dialog
 from ram.models import tag2text
 from collections import Counter
+from transformers import LlamaTokenizer
 from tokenize_anything import model_registry
 from groundeddino_vl.utils.inference import Model
 from sentence_transformers import SentenceTransformer
 from some_class.map_calss import DetectionList, MapObjectList
 from some_class.amg_class import MyAutomaticMaskGenerator
-
 
 # spacy分词时的一些先验词汇表
 CONFUSED_NOUNS = ["metal", "back", "part", "row", "triangular","patch"]
@@ -303,7 +302,7 @@ def filter_objects(cfg, objects: MapObjectList):
         if len(obj['pcd'].points) >= cfg.obj_min_points and obj['num_detections'] >= cfg.obj_min_detections:
             objects_to_keep.append(obj)
     objects = MapObjectList(objects_to_keep)
-    print("After final map filtering: ", len(objects))
+    print("After final map filtering:", len(objects))
     return objects
 
 def compute_3d_iou(bbox1, bbox2, padding=0, use_iou=True):
@@ -669,111 +668,126 @@ def class_objects(cfg, sbert_model, objects: MapObjectList, bg_objects: MapObjec
                 # 设置好类别和颜色
                 bg_objects[i]['class_sk'] = class_names_sk[max_indices]
                 bg_objects[i]['inst_color'] = class_colors_sk[max_indices]
+
     elif cfg.class_methods == "llama":
-        # 用作示范的prompt example
+        # Load tokenizer
+        tokenizer = LlamaTokenizer.from_pretrained(
+            cfg.llama_ckpt_dir,
+        )
+
+        # Prompt example
         caption_example1 = "a car parked on the street"
         caption_example2 = "a red and white sign"
         caption_example3 = "grass on the side of the road"
         caption_example4 = "a sign on a pole"
-        DEFAULT_PROMPT = """
-        You are a classifier that can categorize a caption phrase into one of the following categories based on a caption phrase.
-        List of categories: [car, bicycle, motorcycle, truck, person, bicyclist, motorcyclist, road,
-        parking, sidewalk, building, fence, vegetation, trunk, terrain, pole, traffic-sign].
-        You only need to generate one category name which must be included in this list.
-        The output format is 'Category name: [[your summarized category name itself]]'
-        Emphasizing again: Do not provide words beyond the given list!!! Please test it yourself and regenerate it if it exceeds the list.
-        """
+        system_prompt = (
+            "You are a classifier that can categorize a caption phrase into one of the following categories based on a caption phrase. "
+            "List of categories: [car, bicycle, motorcycle, truck, person, bicyclist, motorcyclist, road, "
+            "parking, sidewalk, building, fence, vegetation, trunk, terrain, pole, traffic-sign]. "
+            "You only need to generate one category name which must be included in this list. "
+            "The output format is 'Category name: [[your summarized category name itself]]' "
+            "Emphasizing again: Do not provide words beyond the given list!!! Please test it yourself and regenerate it if it exceeds the list."
+        )
+
         for i in trange(len(objects)):
             caption_obj = objects[i]["caption"]
-            # 生成llama对话
-            dialogs: List[Dialog] = [
-                [{"role": "system",
-                "content": DEFAULT_PROMPT}
-                ,{"role": "user", "content": caption_example1}
-                ,{"role": "assistant", "content": "Category name: [car]"}
-                ,{"role": "user", "content": caption_example2}
-                ,{"role": "assistant", "content": "Category name: [traffic-sign]"}
-                ,{"role": "user", "content": caption_example3}
-                ,{"role": "assistant", "content": "Category name: [terrain]"}
-                ,{"role": "user", "content": caption_example4}
-                ,{"role": "assistant", "content": "Category name: [traffic-sign]"}
-                ,{"role": "user", "content": caption_obj}],
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": caption_example1},
+                {"role": "assistant", "content": "Category name: [car]"},
+                {"role": "user", "content": caption_example2},
+                {"role": "assistant", "content": "Category name: [traffic-sign]"},
+                {"role": "user", "content": caption_example3},
+                {"role": "assistant", "content": "Category name: [terrain]"},
+                {"role": "user", "content": caption_example4},
+                {"role": "assistant", "content": "Category name: [traffic-sign]"},
+                {"role": "user", "content": caption_obj},
             ]
-            # llama进行回答
-            results = generator.chat_completion(
-                dialogs,  # type: ignore
-                max_gen_len= None,
+            inputs = tokenizer.apply_chat_template(
+                messages,
+                add_generation_prompt=True,
+                tokenize=True,
+                return_dict=True,
+                return_tensors="pt",
+            ).to(generator.device)
+
+            # Generate response
+            output_ids = generator.generate(
+                **inputs,
+                max_new_tokens=256,
                 temperature=0.6,
-                top_p=0.9,
+                top_p=0.9
             )
-            # 读取llama回答结果中的generation content作为caption融合结果
-            for dialog, result in zip(dialogs, results):
-                input_text = result["generation"]["content"]
-                pattern = r'\[([^]]+)\]'  # 匹配方括号中的内容
-                match = re.search(pattern, input_text)
-                extracted_content = []
-                if match:
-                    extracted_content = match.group(1)
-            # 如果llama生成的特征没有在给定列表中，则使用sbert特征配准
+            gen_ids = output_ids[0][inputs["input_ids"].size(1):]
+            output_text = tokenizer.decode(gen_ids, skip_special_tokens=True)
+
+            # Extract the category inside brackets
+            match = re.search(r'\[([^]]+)\]', output_text)
+            extracted_content = match.group(1) if match else caption_obj
+
             if extracted_content not in class_colors_sk_disk:
                 extracted_content_ft = sbert_model.encode(extracted_content, convert_to_tensor=True)
                 extracted_content_ft = extracted_content_ft / extracted_content_ft.norm(dim=-1, keepdim=True)
                 extracted_content_ft = extracted_content_ft.squeeze()
-                # 与class计算相似性
                 similarities = F.cosine_similarity(class_name_fts, extracted_content_ft.unsqueeze(0), dim=-1)
                 max_indices = torch.argmax(similarities)
-                # 设置好类别和颜色
                 objects[i]['class_sk'] = class_names_sk[max_indices]
                 objects[i]['inst_color'] = class_colors_sk[max_indices]
             else:
                 objects[i]["class_sk"] = extracted_content
                 objects[i]['inst_color'] = np.array(class_colors_sk_disk[extracted_content])/255.0
+
+            class_obj = objects[i]["class_sk"]
+
         if bg_objects is not None:
             for i in trange(len(bg_objects)):
                 caption_obj = bg_objects[i]["caption"]
-                # 生成llama对话
-                dialogs: List[Dialog] = [
-                    [{"role": "system",
-                    "content": DEFAULT_PROMPT}
-                    ,{"role": "user", "content": caption_example1}
-                    ,{"role": "assistant", "content": "Category name: [car]"}
-                    ,{"role": "user", "content": caption_example2}
-                    ,{"role": "assistant", "content": "Category name: [traffic-sign]"}
-                    ,{"role": "user", "content": caption_example3}
-                    ,{"role": "assistant", "content": "Category name: [terrain]"}
-                    ,{"role": "user", "content": caption_example4}
-                    ,{"role": "assistant", "content": "Category name: [traffic-sign]"}
-                    ,{"role": "user", "content": caption_obj}],
+                messages = [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": caption_example1},
+                    {"role": "assistant", "content": "Category name: [car]"},
+                    {"role": "user", "content": caption_example2},
+                    {"role": "assistant", "content": "Category name: [traffic-sign]"},
+                    {"role": "user", "content": caption_example3},
+                    {"role": "assistant", "content": "Category name: [terrain]"},
+                    {"role": "user", "content": caption_example4},
+                    {"role": "assistant", "content": "Category name: [traffic-sign]"},
+                    {"role": "user", "content": caption_obj},
                 ]
-                # llama进行回答
-                results = generator.chat_completion(
-                    dialogs,  # type: ignore
-                    max_gen_len= None,
+                inputs = tokenizer.apply_chat_template(
+                    messages,
+                    add_generation_prompt=True,
+                    tokenize=True,
+                    return_dict=True,
+                    return_tensors="pt",
+                ).to(generator.device)
+
+                # Generate response
+                output_ids = generator.generate(
+                    **inputs,
+                    max_new_tokens=256,
                     temperature=0.6,
-                    top_p=0.9,
+                    top_p=0.9
                 )
-                # 读取llama回答结果中的generation content作为caption融合结果
-                for dialog, result in zip(dialogs, results):
-                    input_text = result["generation"]["content"]
-                    pattern = r'\[([^]]+)\]'  # 匹配方括号中的内容
-                    match = re.search(pattern, input_text)
-                    extracted_content = []
-                    if match:
-                        extracted_content = match.group(1)
-                # 如果llama生成的特征没有在给定列表中，则使用sbert特征配准
+                gen_ids = output_ids[0][inputs["input_ids"].size(1):]
+                output_text = tokenizer.decode(gen_ids, skip_special_tokens=True)
+
+                # Extract the category inside brackets
+                match = re.search(r'\[([^]]+)\]', output_text)
+                extracted_content = match.group(1) if match else caption_obj
+
                 if extracted_content not in class_colors_sk_disk:
                     extracted_content_ft = sbert_model.encode(extracted_content, convert_to_tensor=True)
                     extracted_content_ft = extracted_content_ft / extracted_content_ft.norm(dim=-1, keepdim=True)
                     extracted_content_ft = extracted_content_ft.squeeze()
-                    # 与class计算相似性
                     similarities = F.cosine_similarity(class_name_fts, extracted_content_ft.unsqueeze(0), dim=-1)
                     max_indices = torch.argmax(similarities)
-                    # 设置好类别和颜色
                     bg_objects[i]['class_sk'] = class_names_sk[max_indices]
                     bg_objects[i]['inst_color'] = class_colors_sk[max_indices]
                 else:
                     bg_objects[i]["class_sk"] = extracted_content
                     bg_objects[i]['inst_color'] = np.array(class_colors_sk_disk[extracted_content])/255.0
+
     elif cfg.class_methods == "gpt":
         print("Asking gpt for class")
         openai.api_key = cfg.openai_key
@@ -863,9 +877,9 @@ def show_captions(objects: MapObjectList, bg_objects: MapObjectList):
     for i in range(len(objects)):
         caption_obj = objects[i]["caption"]
         class_obj = objects[i]["class_sk"]
-        print(f"object id {i} capitons: {caption_obj} ******** class_name: {class_obj}")
+        print(f"object id {i} captions: {caption_obj} ******** class_name: {class_obj}")
     if bg_objects is not None:
         for i in range(len(bg_objects)):
             caption_obj = bg_objects[i]["caption"]
             class_obj = bg_objects[i]["class_sk"]
-            print(f"bgobject id {i} capitons: {caption_obj} ******** class_name: {class_obj}")
+            print(f"bgobject id {i} captions: {caption_obj} ******** class_name: {class_obj}")

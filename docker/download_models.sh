@@ -8,7 +8,7 @@ MODELS_FOLDER="$HOME/data/models"
 
 # Hugging Face Token for Llama2 model
 # 1. Create account in https://huggingface.co
-# 2. Request access to the llama2 model in https://huggingface.co/meta-llama/Llama-2-7b-chat
+# 2. Request access to the llama2 model in https://huggingface.co/meta-llama/Llama-2-7b-chat-hf
 # 3. Create a access token with read permissions in https://huggingface.co/settings/tokens
 HF_TOKEN="hf_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 
@@ -133,8 +133,8 @@ echo
 mkdir -p "$MODELS_FOLDER/llama2"
 
 git_clone_confirm \
-  "https://user:${HF_TOKEN}@huggingface.co/meta-llama/Llama-2-7b-chat" \
-  "$MODELS_FOLDER/llama2/llama-2-7b-chat"
+  "https://user:${HF_TOKEN}@huggingface.co/meta-llama/Llama-2-7b-chat-hf" \
+  "$MODELS_FOLDER/llama2/llama-2-7b-chat-hf"
 
 # ===============================
 # SBERT
