@@ -31,30 +31,54 @@ def process_cfg(cfg: DictConfig):
     cfg.save_pcd_path = Path(cfg.save_pcd_path)
     return cfg
 
+# def calculate_angle(vectors):
+#     '''
+#     向量组两两之间夹角
+#     '''
+#     # 去除零向量
+#     vectors = np.array(vectors)
+#     norms = np.linalg.norm(vectors, axis=1)
+#     non_zero_indices = np.where(norms != 0)[0]
+#     vectors = vectors[non_zero_indices]
+#     for i in range(len(vectors)):
+#         norm_i = np.linalg.norm(vectors[i])
+#         vectors[i] = vectors[i] / norm_i
+#     angles = []
+#     raw_angles = []
+#     for i in range(len(vectors)):
+#         for j in range(i+1, len(vectors)):
+#             dot_product = np.dot(vectors[i], vectors[j])
+#             if not np.isnan(dot_product):
+#                 angle = np.arccos(np.clip(dot_product, -1.0, 1.0))  # 修正角度范围
+#                 raw_angles.append(angle)
+#                 angle = min(abs(angle-0),abs(angle-np.pi))
+#                 angles.append(angle)
+#     mean_angle = np.mean(angles)
+#     return mean_angle
+
 def calculate_angle(vectors):
-    '''
-    向量组两两之间夹角
-    '''
-    # 去除零向量
     vectors = np.array(vectors)
+    if len(vectors) < 2:
+        return 0.0
+
     norms = np.linalg.norm(vectors, axis=1)
-    non_zero_indices = np.where(norms != 0)[0]
-    vectors = vectors[non_zero_indices]
-    for i in range(len(vectors)):
-        norm_i = np.linalg.norm(vectors[i])
-        vectors[i] = vectors[i] / norm_i
+    vectors = vectors[norms != 0]
+
+    if len(vectors) < 2:
+        return 0.0
+
+    vectors = vectors / np.linalg.norm(vectors, axis=1, keepdims=True)
+
     angles = []
-    raw_angles = []
     for i in range(len(vectors)):
         for j in range(i+1, len(vectors)):
-            dot_product = np.dot(vectors[i], vectors[j])
-            if not np.isnan(dot_product):
-                angle = np.arccos(np.clip(dot_product, -1.0, 1.0))  # 修正角度范围
-                raw_angles.append(angle)
-                angle = min(abs(angle-0),abs(angle-np.pi))
-                angles.append(angle)
-    mean_angle = np.mean(angles)
-    return mean_angle
+            dot = np.clip(np.dot(vectors[i], vectors[j]), -1.0, 1.0)
+            angle = np.arccos(dot)
+            angle = min(abs(angle), abs(angle - np.pi))
+            angles.append(angle)
+
+    return np.mean(angles) if angles else 0.0
+
 
 def process_indexes(indexes):
     '''
@@ -376,7 +400,7 @@ def main(cfg : DictConfig):
     plt.title("Lane traj Colored by Trajectory Order")
     plt.xlabel("X")
     plt.ylabel("Y")
-    plt.savefig("traj_colored.png", dpi=500)
+    plt.savefig(cfg.save_lane_traj_path, dpi=500)
 
 if __name__ == "__main__":
     main()

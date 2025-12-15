@@ -12,6 +12,63 @@ MODELS_FOLDER="$HOME/data/models"
 # 3. Create a access token with read permissions in https://huggingface.co/settings/tokens
 HF_TOKEN="hf_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 
+# ===============================
+# Models Folder & Disk Space Check
+# ===============================
+
+# Expected total size of all models (rounded up)
+REQUIRED_SPACE_GB=62
+
+check_setup() {
+  local target_dir="$1"
+
+  echo "=============================================="
+  echo "📂 Models will be installed in: $target_dir"
+  echo "💡 Make sure this is the correct folder."
+  echo "📦 Total download size       : ~61.8 GB"
+  echo "💽 Available disk space      : $(df -h "$target_dir" | awk 'NR==2 {print $4}')"
+  echo "🔑 Llama 2 requires a Hugging Face API token"
+  echo "   (set in HF_TOKEN variable in the script)"
+  echo "=============================================="
+  echo
+
+  # Ask user if they want to change the folder
+  read -p "Do you want to change the models folder? (y/N): " change_folder
+  if [[ "$change_folder" == "y" || "$change_folder" == "Y" ]]; then
+    read -p "Enter new path for models folder: " new_path
+    if [[ -z "$new_path" ]]; then
+      echo "No path entered. Using default: $target_dir"
+    else
+      target_dir="$new_path"
+      mkdir -p "$target_dir"
+      echo "Models folder changed to: $target_dir"
+    fi
+  fi
+
+  # Check disk space (in GB)
+  local available_gb
+  available_gb=$(df -BG "$target_dir" | awk 'NR==2 {gsub(/G/, "", $4); print $4}')
+
+  if (( available_gb < REQUIRED_SPACE_GB )); then
+    echo
+    echo "⚠️  WARNING: Not enough disk space!"
+    echo "   Required : ~61.8 GB"
+    echo "   Available: ${available_gb} GB"
+    echo
+    read -p "Continue anyway? (y/N): " answer
+    if [[ "$answer" != "y" && "$answer" != "Y" ]]; then
+      echo "Aborting due to insufficient disk space."
+      exit 1
+    fi
+  else
+    echo "✅ Sufficient disk space detected."
+  fi
+
+  # Export updated folder
+  MODELS_FOLDER="$target_dir"
+}
+
+check_setup "$MODELS_FOLDER"
 mkdir -p "$MODELS_FOLDER"
 
 # ===============================

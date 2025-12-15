@@ -213,9 +213,13 @@ def caption_merge(cfg, objects: MapObjectList):
     )
     model = LlamaForCausalLM.from_pretrained(
         cfg.llama_ckpt_dir,
+        quantization_config=bnb_config,
         device_map="auto",
+        max_memory={
+            0: "8GiB",       # GPU limit (adjust!)
+            "cpu": "16GiB"   # CPU RAM
+        },
         torch_dtype=torch.float16,
-        quantization_config=bnb_config
     )
     model.eval()
 

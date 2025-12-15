@@ -34,6 +34,21 @@ from sentence_transformers import SentenceTransformer
 from tokenize_anything import model_registry
 from tokenize_anything.utils.image import im_rescale, im_vstack
 
+COMMAND_LEGEND = """
+================= COMMANDS =================
+[V] Save viewpoint
+[X] Restore viewpoint
+
+[B] Toggle background objects
+[C] Color by semantic class
+[I] Color by instance
+[R] RGB coloring
+[F] Text query
+[G] Toggle scene graph
+
+[H] Show this help
+============================================
+"""
 
 saved_viewpoint = None
 
@@ -533,6 +548,9 @@ def main(cfg : DictConfig):
         if saved_viewpoint is not None:
             view_control.convert_from_pinhole_camera_parameters(saved_viewpoint)
 
+    def show_help(vis):
+        print(COMMAND_LEGEND)
+
     vis.register_key_callback(ord("B"), toggle_bg_pcd)
     vis.register_key_callback(ord("C"), color_by_class)
     vis.register_key_callback(ord("I"), color_by_instance)
@@ -543,6 +561,8 @@ def main(cfg : DictConfig):
     vis.register_key_callback(ord("M"), color_by_llm)
     vis.register_key_callback(ord("V"), save_viewpoint)
     vis.register_key_callback(ord("X"), restore_viewpoint)
+    vis.register_key_callback(ord("H"), show_help)
+    print(COMMAND_LEGEND)
     vis.run()
 
 if __name__ == "__main__":

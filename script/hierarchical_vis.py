@@ -15,6 +15,20 @@ from some_class.map_calss import MapObjectList
 from script.roadnet_xzy import color_by_road_net
 
 
+COMMAND_LEGEND = """
+================= COMMANDS =====================
+[V] Save viewpoint
+[X] Restore viewpoint
+
+[I] Toggle instance cubes
+[G] Toggle instance connections (scene graph)
+[O] Toggle road / layer 2-4-5 visualization
+[L] Toggle layer connections
+
+[H] Show this help
+================================================
+"""
+
 def lines_from_ordered_points(points):
         lines = [[i, i + 1] for i in range(0, points.shape[0] - 1, 1)]
         return np.array(lines)
@@ -277,6 +291,8 @@ def main(cfg : DictConfig):
         print("main.show_inst_sphere_lines", main.show_inst_sphere_lines)
         main.show_inst_sphere_lines = not main.show_inst_sphere_lines
 
+    def show_help(vis):
+        print(COMMAND_LEGEND)
 
     vis.register_key_callback(ord("V"), save_view_params)
     vis.register_key_callback(ord("X"), restore_viewpoint)
@@ -284,6 +300,8 @@ def main(cfg : DictConfig):
     vis.register_key_callback(ord("G"), vis_scene_graph)
     vis.register_key_callback(ord("O"), show_layer245_vis)
     vis.register_key_callback(ord("L"), vis_inst_sphere)
+    vis.register_key_callback(ord("H"), show_help)
+    print(COMMAND_LEGEND)
     vis.run()
 
 
